@@ -1,8 +1,13 @@
 #!/bin/bash
 
 # Neovim Configuration Installation Script
+# Idempotent installation with state management
 
 set -e
+
+# Load state management functions
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/state_manager.sh"
 
 # Default values for flags
 SKIP_FONTS=false
@@ -13,6 +18,8 @@ SKIP_RUST=false
 SKIP_BACKUP=false
 SKIP_PLUGINS=false
 INSTALL_TMUX_CONFIG=false
+SHOW_STATE=false
+RESET_STATE=false
 
 # Parse command line arguments
 while [[ $# -gt 0 ]]; do
@@ -49,6 +56,14 @@ while [[ $# -gt 0 ]]; do
             INSTALL_TMUX_CONFIG=true
             shift
             ;;
+        --show-state)
+            SHOW_STATE=true
+            shift
+            ;;
+        --reset-state)
+            RESET_STATE=true
+            shift
+            ;;
         --help|-h)
             echo "Neovim Configuration Installation Script"
             echo ""
@@ -63,13 +78,16 @@ while [[ $# -gt 0 ]]; do
             echo "  --skip-backup     Skip backing up existing configuration"
             echo "  --skip-plugins    Skip automatic plugin installation"
             echo "  --with-tmux       Install optimal tmux configuration"
+            echo "  --show-state      Show current installation state and exit"
+            echo "  --reset-state     Reset all installation states (for testing)"
             echo "  -h, --help        Show this help message"
             echo ""
             echo "Examples:"
             echo "  ./install.sh                    # Full installation"
             echo "  ./install.sh --skip-fonts       # Install without fonts"
             echo "  ./install.sh --with-tmux        # Install with tmux config"
-            echo "  ./install.sh --skip-deps --skip-fonts  # Minimal install"
+            echo "  ./install.sh --show-state       # Check installation status"
+            echo "  ./install.sh --reset-state      # Reset state for fresh install"
             exit 0
             ;;
         *)
@@ -80,181 +98,393 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-echo "🚀 Installing Neovim Configuration..."
+# Initialize state management
+init_state
+
+# Handle state commands
+if [ "$SHOW_STATE" = true ]; then
+    show_state
+    exit 0
+fi
+
+if [ "$RESET_STATE" = true ]; then
+    reset_state
+    exit 0
+fi
+
+echo "🚀 Installing Neovim Configuration (Idempotent Mode)..."
 
 # Colors for output
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 RED='\033[0;31m'
+BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-# Check if Neovim is installed
-if ! command -v nvim &> /dev/null; then
-    echo -e "${RED}❌ Neovim is not installed!${NC}"
-    echo "Please install Neovim first:"
-    echo "  curl -LO https://github.com/neovim/neovim/releases/download/v0.10.3/nvim.appimage"
-    echo "  chmod u+x nvim.appimage"
-    echo "  sudo mv nvim.appimage /usr/local/bin/nvim"
-    exit 1
-fi
+# Helper function for consistent output
+log_action() {
+    local component="$1"
+    local action="$2"
+    local status="$3"
+    
+    case "$status" in
+        "skip")
+            echo -e "${BLUE}⏸️  [$component] Skipped - $action${NC}"
+            ;;
+        "already")
+            echo -e "${GREEN}✓ [$component] Already installed - $action${NC}"
+            ;;
+        "installing")
+            echo -e "${YELLOW}⚙️  [$component] Installing - $action${NC}"
+            ;;
+        "success")
+            echo -e "${GREEN}✅ [$component] Success - $action${NC}"
+            ;;
+        "failed")
+            echo -e "${RED}❌ [$component] Failed - $action${NC}"
+            ;;
+    esac
+}
 
-echo -e "${GREEN}✓ Neovim found: $(nvim --version | head -n1)${NC}"
-
-# Check for required tools
-echo -e "\n${YELLOW}Checking dependencies...${NC}"
-
-# Check for git
-if ! command -v git &> /dev/null; then
-    echo -e "${RED}❌ Git is not installed!${NC}"
-    echo "Installing git..."
-    sudo apt update && sudo apt install -y git
-fi
-
-# Check for ripgrep (required for Telescope)
-if [ "$SKIP_DEPS" = false ]; then
-    if ! command -v rg &> /dev/null; then
-        echo -e "${YELLOW}⚠ Ripgrep not found. Installing...${NC}"
-        sudo apt update && sudo apt install -y ripgrep
+# Check Neovim installation
+check_neovim() {
+    if needs_action "neovim_check"; then
+        if check_and_update_state "neovim_check" "command -v nvim"; then
+            log_action "Neovim" "Version: $(nvim --version | head -n1)" "already"
+        else
+            log_action "Neovim" "Not installed" "failed"
+            echo -e "${RED}Please install Neovim first:${NC}"
+            echo "  curl -LO https://github.com/neovim/neovim/releases/download/v0.10.3/nvim.appimage"
+            echo "  chmod u+x nvim.appimage"
+            echo "  sudo mv nvim.appimage /usr/local/bin/nvim"
+            exit 1
+        fi
+    else
+        log_action "Neovim" "Version check" "skip"
     fi
+}
 
-    # Check for fd (optional but recommended for Telescope)
-    if ! command -v fd &> /dev/null; then
-        echo -e "${YELLOW}⚠ fd not found. Installing...${NC}"
-        sudo apt update && sudo apt install -y fd-find
-        # Create symlink for fd
-        sudo ln -sf $(which fdfind) /usr/local/bin/fd 2>/dev/null || true
+# Install Git
+install_git() {
+    if needs_action "git_install"; then
+        if check_and_update_state "git_install" "command -v git"; then
+            log_action "Git" "Already available" "already"
+        else
+            log_action "Git" "Installing via apt" "installing"
+            if install_and_update_state "git_install" "sudo apt update && sudo apt install -y git" "command -v git"; then
+                log_action "Git" "Installation completed" "success"
+            else
+                log_action "Git" "Installation failed" "failed"
+                exit 1
+            fi
+        fi
+    else
+        log_action "Git" "Installation" "skip"
     fi
+}
 
-    # Check for fzf
-    if ! command -v fzf &> /dev/null; then
-        echo -e "${YELLOW}⚠ fzf not found. Installing...${NC}"
-        git clone --depth 1 https://github.com/junegunn/fzf.git ~/.fzf
-        ~/.fzf/install --all --no-bash --no-zsh --no-fish
-        # Add to PATH for current session
-        export PATH="$HOME/.fzf/bin:$PATH"
+# Install dependencies
+install_dependencies() {
+    if [ "$SKIP_DEPS" = true ]; then
+        log_action "Dependencies" "Skipped by user flag" "skip"
+        return
     fi
-else
-    echo -e "${YELLOW}⚠ Skipping dependency installation (--skip-deps)${NC}"
-fi
+    
+    # Ripgrep
+    if needs_action "ripgrep_install"; then
+        if check_and_update_state "ripgrep_install" "command -v rg"; then
+            log_action "Ripgrep" "Already available" "already"
+        else
+            log_action "Ripgrep" "Installing via apt" "installing"
+            if install_and_update_state "ripgrep_install" "sudo apt update && sudo apt install -y ripgrep" "command -v rg"; then
+                log_action "Ripgrep" "Installation completed" "success"
+            else
+                log_action "Ripgrep" "Installation failed" "failed"
+            fi
+        fi
+    else
+        log_action "Ripgrep" "Installation" "skip"
+    fi
+    
+    # fd
+    if needs_action "fd_install"; then
+        if check_and_update_state "fd_install" "command -v fd"; then
+            log_action "fd" "Already available" "already"
+        else
+            log_action "fd" "Installing via apt" "installing"
+            install_cmd="sudo apt update && sudo apt install -y fd-find && sudo ln -sf $(which fdfind) /usr/local/bin/fd 2>/dev/null || true"
+            if install_and_update_state "fd_install" "$install_cmd" "command -v fd"; then
+                log_action "fd" "Installation completed" "success"
+            else
+                log_action "fd" "Installation failed" "failed"
+            fi
+        fi
+    else
+        log_action "fd" "Installation" "skip"
+    fi
+    
+    # fzf
+    if needs_action "fzf_install"; then
+        if check_and_update_state "fzf_install" "command -v fzf"; then
+            log_action "fzf" "Already available" "already"
+        else
+            log_action "fzf" "Installing from source" "installing"
+            install_cmd="git clone --depth 1 https://github.com/junegunn/fzf.git ~/.fzf && ~/.fzf/install --all --no-bash --no-zsh --no-fish"
+            if install_and_update_state "fzf_install" "$install_cmd" "command -v fzf || test -f ~/.fzf/bin/fzf"; then
+                log_action "fzf" "Installation completed" "success"
+                export PATH="$HOME/.fzf/bin:$PATH"
+            else
+                log_action "fzf" "Installation failed" "failed"
+            fi
+        fi
+    else
+        log_action "fzf" "Installation" "skip"
+    fi
+}
 
-# Check for Node.js (required for many LSP servers)
-if [ "$SKIP_NODE" = false ]; then
-    if ! command -v node &> /dev/null; then
-        echo -e "${YELLOW}⚠ Node.js not found. Installing...${NC}"
-        curl -fsSL https://deb.nodesource.com/setup_lts.x | sudo -E bash -
-        sudo apt install -y nodejs
+# Install Node.js
+install_node() {
+    if [ "$SKIP_NODE" = true ]; then
+        log_action "Node.js" "Skipped by user flag" "skip"
+        return
     fi
-else
-    echo -e "${YELLOW}⚠ Skipping Node.js installation (--skip-node)${NC}"
-fi
+    
+    if needs_action "node_install"; then
+        if check_and_update_state "node_install" "command -v node"; then
+            log_action "Node.js" "Already available" "already"
+        else
+            log_action "Node.js" "Installing LTS version" "installing"
+            install_cmd="curl -fsSL https://deb.nodesource.com/setup_lts.x | sudo -E bash - && sudo apt install -y nodejs"
+            if install_and_update_state "node_install" "$install_cmd" "command -v node"; then
+                log_action "Node.js" "Installation completed" "success"
+            else
+                log_action "Node.js" "Installation failed" "failed"
+            fi
+        fi
+    else
+        log_action "Node.js" "Installation" "skip"
+    fi
+}
 
-# Check for Python3 and pip
-if [ "$SKIP_PYTHON" = false ]; then
-    if ! command -v python3 &> /dev/null; then
-        echo -e "${YELLOW}⚠ Python3 not found. Installing...${NC}"
-        sudo apt update && sudo apt install -y python3 python3-pip
+# Install Python3
+install_python() {
+    if [ "$SKIP_PYTHON" = true ]; then
+        log_action "Python3" "Skipped by user flag" "skip"
+        return
     fi
-else
-    echo -e "${YELLOW}⚠ Skipping Python3 installation (--skip-python)${NC}"
-fi
-
-# Check for cargo (for Rust development)
-if [ "$SKIP_RUST" = false ]; then
-    if ! command -v cargo &> /dev/null; then
-        echo -e "${YELLOW}⚠ Cargo not found. Install Rust for Rust development support.${NC}"
-        echo "  curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh"
+    
+    if needs_action "python_install"; then
+        if check_and_update_state "python_install" "command -v python3"; then
+            log_action "Python3" "Already available" "already"
+        else
+            log_action "Python3" "Installing via apt" "installing"
+            if install_and_update_state "python_install" "sudo apt update && sudo apt install -y python3 python3-pip" "command -v python3"; then
+                log_action "Python3" "Installation completed" "success"
+            else
+                log_action "Python3" "Installation failed" "failed"
+            fi
+        fi
+    else
+        log_action "Python3" "Installation" "skip"
     fi
-else
-    echo -e "${YELLOW}⚠ Skipping Rust/Cargo check (--skip-rust)${NC}"
-fi
+}
 
 # Install JetBrains Mono font
-if [ "$SKIP_FONTS" = false ]; then
-    echo -e "\n${YELLOW}Installing JetBrains Mono font...${NC}"
-    if ! fc-list | grep -q "JetBrains Mono"; then
-        wget -q --show-progress https://github.com/JetBrains/JetBrainsMono/releases/download/v2.304/JetBrainsMono-2.304.zip -O /tmp/JetBrainsMono.zip
-        sudo unzip -q /tmp/JetBrainsMono.zip -d /usr/share/fonts/
-        sudo fc-cache -f -v > /dev/null 2>&1
-        rm /tmp/JetBrainsMono.zip
-        echo -e "${GREEN}✓ JetBrains Mono font installed${NC}"
-    else
-        echo -e "${GREEN}✓ JetBrains Mono font already installed${NC}"
+install_fonts() {
+    if [ "$SKIP_FONTS" = true ]; then
+        log_action "JetBrains Mono" "Skipped by user flag" "skip"
+        return
     fi
-else
-    echo -e "${YELLOW}⚠ Skipping font installation (--skip-fonts)${NC}"
-fi
+    
+    if needs_action "fonts_install"; then
+        if check_and_update_state "fonts_install" "fc-list | grep -q 'JetBrains Mono'"; then
+            log_action "JetBrains Mono" "Already installed" "already"
+        else
+            log_action "JetBrains Mono" "Downloading and installing" "installing"
+            install_cmd="wget -q --show-progress https://github.com/JetBrains/JetBrainsMono/releases/download/v2.304/JetBrainsMono-2.304.zip -O /tmp/JetBrainsMono.zip && sudo unzip -q /tmp/JetBrainsMono.zip -d /usr/share/fonts/ && sudo fc-cache -f -v > /dev/null 2>&1 && rm /tmp/JetBrainsMono.zip"
+            if install_and_update_state "fonts_install" "$install_cmd" "fc-list | grep -q 'JetBrains Mono'"; then
+                log_action "JetBrains Mono" "Installation completed" "success"
+            else
+                log_action "JetBrains Mono" "Installation failed" "failed"
+            fi
+        fi
+    else
+        log_action "JetBrains Mono" "Installation" "skip"
+    fi
+}
 
 # Backup existing configuration
-if [ "$SKIP_BACKUP" = false ]; then
-    if [ -d "$HOME/.config/nvim" ]; then
-        echo -e "\n${YELLOW}Backing up existing configuration...${NC}"
-        mv "$HOME/.config/nvim" "$HOME/.config/nvim.backup.$(date +%Y%m%d_%H%M%S)"
-        echo -e "${GREEN}✓ Backup created${NC}"
+backup_config() {
+    if [ "$SKIP_BACKUP" = true ]; then
+        log_action "Config Backup" "Skipped by user flag" "skip"
+        # Still remove existing config if present
+        if [ -d "$HOME/.config/nvim" ]; then
+            log_action "Config Cleanup" "Removing existing config" "installing"
+            rm -rf "$HOME/.config/nvim"
+        fi
+        return
     fi
-else
-    echo -e "${YELLOW}⚠ Skipping backup (--skip-backup)${NC}"
-    if [ -d "$HOME/.config/nvim" ]; then
-        echo -e "${RED}⚠ Warning: Existing configuration will be overwritten!${NC}"
-        rm -rf "$HOME/.config/nvim"
+    
+    if needs_action "config_backup"; then
+        if [ -d "$HOME/.config/nvim" ]; then
+            log_action "Config Backup" "Creating backup" "installing"
+            backup_name="$HOME/.config/nvim.backup.$(date +%Y%m%d_%H%M%S)"
+            if mv "$HOME/.config/nvim" "$backup_name"; then
+                set_state "config_backup" "installed"
+                log_action "Config Backup" "Backup created: $(basename $backup_name)" "success"
+            else
+                set_state "config_backup" "notinstalled"
+                log_action "Config Backup" "Backup failed" "failed"
+            fi
+        else
+            set_state "config_backup" "installed"
+            log_action "Config Backup" "No existing config found" "already"
+        fi
+    else
+        log_action "Config Backup" "Already handled" "skip"
     fi
-fi
+}
 
-# Copy new configuration
-echo -e "\n${YELLOW}Installing new configuration...${NC}"
-mkdir -p "$HOME/.config/nvim"
-cp -r ./* "$HOME/.config/nvim/"
-echo -e "${GREEN}✓ Configuration files copied${NC}"
+# Install new configuration
+install_config() {
+    if needs_action "config_install"; then
+        if [ -d "$HOME/.config/nvim" ] && [ -f "$HOME/.config/nvim/init.lua" ]; then
+            set_state "config_install" "installed"
+            log_action "Config Install" "Already installed" "already"
+        else
+            log_action "Config Install" "Copying configuration files" "installing"
+            if mkdir -p "$HOME/.config/nvim" && cp -r ./* "$HOME/.config/nvim/"; then
+                set_state "config_install" "installed"
+                log_action "Config Install" "Configuration files copied" "success"
+            else
+                set_state "config_install" "notinstalled"
+                log_action "Config Install" "Copy failed" "failed"
+            fi
+        fi
+    else
+        log_action "Config Install" "Already installed" "skip"
+    fi
+}
 
 # Install lazy.nvim
-echo -e "\n${YELLOW}Installing lazy.nvim plugin manager...${NC}"
-git clone --filter=blob:none https://github.com/folke/lazy.nvim.git --branch=stable \
-    "$HOME/.local/share/nvim/lazy/lazy.nvim" 2>/dev/null || true
+install_lazyvim() {
+    if needs_action "lazyvim_install"; then
+        lazy_path="$HOME/.local/share/nvim/lazy/lazy.nvim"
+        if [ -d "$lazy_path" ]; then
+            set_state "lazyvim_install" "installed"
+            log_action "Lazy.nvim" "Already installed" "already"
+        else
+            log_action "Lazy.nvim" "Cloning plugin manager" "installing"
+            install_cmd="git clone --filter=blob:none https://github.com/folke/lazy.nvim.git --branch=stable '$lazy_path'"
+            if eval "$install_cmd" 2>/dev/null; then
+                set_state "lazyvim_install" "installed"
+                log_action "Lazy.nvim" "Plugin manager installed" "success"
+            else
+                set_state "lazyvim_install" "notinstalled"
+                log_action "Lazy.nvim" "Installation failed" "failed"
+            fi
+        fi
+    else
+        log_action "Lazy.nvim" "Already installed" "skip"
+    fi
+}
 
 # Install plugins
-if [ "$SKIP_PLUGINS" = false ]; then
-    echo -e "\n${YELLOW}Installing plugins...${NC}"
-    nvim --headless "+Lazy! sync" +qa
-else
-    echo -e "${YELLOW}⚠ Skipping plugin installation (--skip-plugins)${NC}"
-    echo -e "${YELLOW}Run :Lazy sync in Neovim to install plugins manually${NC}"
-fi
-
-# Install tmux configuration if requested
-if [ "$INSTALL_TMUX_CONFIG" = true ]; then
-    echo -e "\n${YELLOW}Installing tmux configuration...${NC}"
-    
-    # Check if tmux is installed
-    if ! command -v tmux &> /dev/null; then
-        echo -e "${YELLOW}⚠ Tmux not found. Installing...${NC}"
-        sudo apt update && sudo apt install -y tmux
+install_plugins() {
+    if [ "$SKIP_PLUGINS" = true ]; then
+        log_action "Plugins" "Skipped by user flag" "skip"
+        return
     fi
     
-    # Backup existing tmux config
-    if [ -f "$HOME/.tmux.conf" ]; then
-        mv "$HOME/.tmux.conf" "$HOME/.tmux.conf.backup.$(date +%Y%m%d_%H%M%S)"
-        echo -e "${GREEN}✓ Existing tmux config backed up${NC}"
-    fi
-    
-    # Copy tmux configuration
-    if [ -f "./tmux.conf" ]; then
-        cp ./tmux.conf "$HOME/.tmux.conf"
-        echo -e "${GREEN}✓ Tmux configuration installed${NC}"
+    if needs_action "plugins_install"; then
+        log_action "Plugins" "Installing via Lazy.nvim" "installing"
+        if nvim --headless "+Lazy! sync" +qa 2>/dev/null; then
+            set_state "plugins_install" "installed"
+            log_action "Plugins" "Plugin installation completed" "success"
+        else
+            set_state "plugins_install" "notinstalled"
+            log_action "Plugins" "Plugin installation failed" "failed"
+        fi
     else
-        echo -e "${RED}❌ tmux.conf not found in current directory${NC}"
+        log_action "Plugins" "Already installed" "skip"
     fi
-fi
+}
 
-echo -e "\n${GREEN}✅ Installation complete!${NC}"
-echo -e "\nNext steps:"
-echo -e "1. Open Neovim: ${YELLOW}nvim${NC}"
-if [ "$SKIP_PLUGINS" = false ]; then
-    echo -e "2. Wait for plugins to install automatically"
-else
-    echo -e "2. Run ${YELLOW}:Lazy sync${NC} to install plugins"
-fi
-echo -e "3. Run ${YELLOW}:checkhealth${NC} to verify setup"
-echo -e "4. Read the usage guide: ${YELLOW}nvim ~/claude/nvim/USAGE_GUIDE.md${NC}"
-if [ "$INSTALL_TMUX_CONFIG" = true ]; then
-    echo -e "5. Start tmux: ${YELLOW}tmux${NC} (config installed)"
-fi
-echo -e "\n${GREEN}Happy coding! 🎉${NC}"
+# Install tmux configuration
+install_tmux() {
+    if [ "$INSTALL_TMUX_CONFIG" = false ]; then
+        log_action "Tmux" "Not requested" "skip"
+        return
+    fi
+    
+    if needs_action "tmux_install"; then
+        # Check if tmux is installed
+        if ! command -v tmux &> /dev/null; then
+            log_action "Tmux" "Installing tmux binary" "installing"
+            sudo apt update && sudo apt install -y tmux
+        fi
+        
+        # Check if our config is already installed
+        if [ -f "$HOME/.tmux.conf" ] && grep -q "Claude Neovim" "$HOME/.tmux.conf" 2>/dev/null; then
+            set_state "tmux_install" "installed"
+            log_action "Tmux" "Configuration already installed" "already"
+        else
+            log_action "Tmux" "Installing configuration" "installing"
+            
+            # Backup existing config
+            if [ -f "$HOME/.tmux.conf" ]; then
+                mv "$HOME/.tmux.conf" "$HOME/.tmux.conf.backup.$(date +%Y%m%d_%H%M%S)"
+            fi
+            
+            # Install new config
+            if [ -f "./tmux.conf" ] && cp ./tmux.conf "$HOME/.tmux.conf"; then
+                set_state "tmux_install" "installed"
+                log_action "Tmux" "Configuration installed" "success"
+            else
+                set_state "tmux_install" "notinstalled"
+                log_action "Tmux" "Configuration installation failed" "failed"
+            fi
+        fi
+    else
+        log_action "Tmux" "Already configured" "skip"
+    fi
+}
+
+# Main installation flow
+main() {
+    echo -e "\n${YELLOW}Checking installation state...${NC}"
+    
+    check_neovim
+    install_git
+    install_dependencies
+    install_node
+    install_python
+    install_fonts
+    backup_config
+    install_config
+    install_lazyvim
+    install_plugins
+    install_tmux
+    
+    echo -e "\n${GREEN}✅ Installation process complete!${NC}"
+    echo -e "\n${BLUE}Installation Summary:${NC}"
+    show_state
+    
+    echo -e "\n${GREEN}Next steps:${NC}"
+    echo -e "1. Open Neovim: ${YELLOW}nvim${NC}"
+    if [ "$SKIP_PLUGINS" = false ]; then
+        echo -e "2. Wait for plugins to install automatically"
+    else
+        echo -e "2. Run ${YELLOW}:Lazy sync${NC} to install plugins"
+    fi
+    echo -e "3. Run ${YELLOW}:checkhealth${NC} to verify setup"
+    echo -e "4. Read the usage guide: ${YELLOW}nvim ~/claude/nvim/USAGE_GUIDE.md${NC}"
+    if [ "$INSTALL_TMUX_CONFIG" = true ]; then
+        echo -e "5. Start tmux: ${YELLOW}tmux${NC} (config installed)"
+    fi
+    echo -e "\n${GREEN}Happy coding! 🎉${NC}"
+    echo -e "\n${BLUE}💡 Tip: Run './install.sh --show-state' to check installation status anytime${NC}"
+}
+
+# Run main installation
+main
