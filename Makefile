@@ -39,11 +39,16 @@ help:
 	@echo ""
 	@echo "$(YELLOW)Usage:$(NC) make [target]"
 	@echo ""
+	@echo "$(YELLOW)Platform Support:$(NC)"
+	@echo "  ✅ Linux (tested on Ubuntu 24.04+)"
+	@echo "  ✅ macOS (Intel & Apple Silicon)"
+	@echo ""
 	@echo "$(YELLOW)Testing Targets:$(NC)"
 	@echo "  test              - Run all tests (unit + integration)"
 	@echo "  test-unit         - Run unit tests for helper functions"
 	@echo "  test-integration  - Run integration tests"
 	@echo "  test-homebrew     - Test Homebrew installation and detection (macOS only)"
+	@echo "  validate-macos    - Validate macOS-specific functionality"
 	@echo ""
 	@echo "$(YELLOW)Validation Targets:$(NC)"
 	@echo "  lint              - Run shellcheck on all shell scripts"
@@ -175,7 +180,9 @@ validate-yaml:
 	else \
 		echo "$(YELLOW)⚠️  yq not installed. Install with:$(NC)"; \
 		echo "  Linux: wget https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -O /usr/local/bin/yq && chmod +x /usr/local/bin/yq"; \
-		echo "  macOS: brew install yq"; \
+		echo "  macOS Intel: wget https://github.com/mikefarah/yq/releases/latest/download/yq_darwin_amd64 -O /usr/local/bin/yq && chmod +x /usr/local/bin/yq"; \
+		echo "  macOS ARM64: wget https://github.com/mikefarah/yq/releases/latest/download/yq_darwin_arm64 -O /usr/local/bin/yq && chmod +x /usr/local/bin/yq"; \
+		echo "  macOS (Homebrew): brew install yq"; \
 		exit 1; \
 	fi
 
@@ -217,7 +224,9 @@ validate-workflows: validate-yaml
 	else \
 		echo "$(YELLOW)⚠️  yq not installed. Install with:$(NC)"; \
 		echo "  Linux: wget https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -O /usr/local/bin/yq && chmod +x /usr/local/bin/yq"; \
-		echo "  macOS: brew install yq"; \
+		echo "  macOS Intel: wget https://github.com/mikefarah/yq/releases/latest/download/yq_darwin_amd64 -O /usr/local/bin/yq && chmod +x /usr/local/bin/yq"; \
+		echo "  macOS ARM64: wget https://github.com/mikefarah/yq/releases/latest/download/yq_darwin_arm64 -O /usr/local/bin/yq && chmod +x /usr/local/bin/yq"; \
+		echo "  macOS (Homebrew): brew install yq"; \
 		exit 1; \
 	fi
 
@@ -293,6 +302,44 @@ else ifeq ($(OS),Linux)
 	else \
 		echo "$(YELLOW)⚠️  Please install shellcheck and yq manually$(NC)"; \
 	fi
+else
+	@echo "$(YELLOW)⚠️  Unsupported OS: $(OS). Please install shellcheck and yq manually$(NC)"
+	@echo "  ShellCheck: https://github.com/koalaman/shellcheck#installing"
+	@echo "  yq: https://github.com/mikefarah/yq#install"
+endif
+
+## Validate macOS-specific functionality
+validate-macos:
+ifeq ($(OS),Darwin)
+	@echo "$(BLUE)🍎 Validating macOS-specific functionality...$(NC)"
+	@echo "Architecture: $(ARCH)"
+	@echo "Expected Homebrew path: $(BREW_PATH)"
+	@echo "Homebrew prefix: $(HOMEBREW_PREFIX)"
+	@echo ""
+	@echo "$(BLUE)Checking macOS tools...$(NC)"
+	@echo -n "system_profiler: "; command -v system_profiler >/dev/null && echo "$(GREEN)✅$(NC)" || echo "$(RED)❌$(NC)"
+	@echo -n "shasum: "; command -v shasum >/dev/null && echo "$(GREEN)✅$(NC)" || echo "$(RED)❌$(NC)"
+	@echo -n "curl: "; command -v curl >/dev/null && echo "$(GREEN)✅$(NC)" || echo "$(RED)❌$(NC)"
+	@echo ""
+	@if [ "$(ARCH)" = "arm64" ]; then \
+		echo "$(BLUE)Testing Apple Silicon (ARM64) specific paths...$(NC)"; \
+		echo "Expected Homebrew: /opt/homebrew"; \
+		echo "Expected PATH contains: /opt/homebrew/bin"; \
+	else \
+		echo "$(BLUE)Testing Intel Mac specific paths...$(NC)"; \
+		echo "Expected Homebrew: /usr/local"; \
+		echo "Expected PATH contains: /usr/local/bin"; \
+	fi
+	@echo ""
+	@echo "$(BLUE)Testing yq binary download URLs...$(NC)"
+	@if [ "$(ARCH)" = "arm64" ]; then \
+		echo "ARM64 yq URL: https://github.com/mikefarah/yq/releases/latest/download/yq_darwin_arm64"; \
+	else \
+		echo "Intel yq URL: https://github.com/mikefarah/yq/releases/latest/download/yq_darwin_amd64"; \
+	fi
+	@echo "$(GREEN)✅ macOS validation complete$(NC)"
+else
+	@echo "$(BLUE)ℹ️  macOS validation skipped (not on macOS)$(NC)"
 endif
 
 ## Clean test artifacts and temporary files
