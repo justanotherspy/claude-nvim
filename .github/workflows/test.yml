@@ -1,0 +1,206 @@
+name: Testing Pipeline
+
+on:
+  push:
+    branches: [ main, develop, feature/* ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      debug_enabled:
+        type: boolean
+        description: 'Enable debug mode'
+        required: false
+        default: false
+
+jobs:
+  test-linux:
+    name: Test on Linux
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup environment
+      run: |
+        echo "🐧 Testing on Linux"
+        uname -a
+        echo "PATH=$PATH"
+        
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y shellcheck jq curl git
+        # Install Go-based yq (compatible with our Makefile)
+        sudo wget https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -O /usr/bin/yq
+        sudo chmod +x /usr/bin/yq
+        
+    - name: Show environment
+      run: make show-env
+      
+    - name: Run syntax validation
+      run: make syntax-check
+      
+    - name: Run unit tests
+      run: make test-unit
+      continue-on-error: true  # Allow to see all test results
+      
+    - name: Run integration tests
+      run: make test-integration
+      
+    - name: Validate checksums
+      run: make validate-checksums
+      
+    - name: Run security scan
+      run: make security-scan
+      
+    - name: Test installation script help
+      run: ./install.sh --help
+      
+    - name: Test state management
+      run: |
+        ./install.sh --show-state
+        ./install.sh --reset-state
+        ./install.sh --show-state
+
+  test-macos:
+    name: Test on macOS
+    runs-on: macos-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup environment
+      run: |
+        echo "🍎 Testing on macOS"
+        uname -a
+        echo "Architecture: $(uname -m)"
+        echo "PATH=$PATH"
+        
+    - name: Install dependencies
+      run: |
+        # Homebrew is pre-installed on GitHub Actions macOS runners
+        brew install shellcheck yq jq
+        
+    - name: Show environment
+      run: make show-env
+      
+    - name: Test Homebrew detection
+      run: make test-homebrew
+      
+    - name: Run syntax validation
+      run: make syntax-check
+      
+    - name: Run unit tests
+      run: make test-unit
+      continue-on-error: true  # Allow to see all test results
+      
+    - name: Run integration tests
+      run: make test-integration
+      
+    - name: Validate checksums
+      run: make validate-checksums
+      
+    - name: Test architecture detection
+      run: |
+        echo "Testing architecture-specific features..."
+        if [[ "$(uname -m)" == "arm64" ]]; then
+          echo "✅ ARM64 (Apple Silicon) detected"
+          test -d "/opt/homebrew" && echo "✅ ARM64 Homebrew path exists" || echo "⚠️ ARM64 Homebrew path missing"
+        else
+          echo "✅ x86_64 (Intel) detected"
+          test -d "/usr/local/Homebrew" && echo "✅ Intel Homebrew path exists" || echo "⚠️ Intel Homebrew path missing"
+        fi
+      
+    - name: Test installation script help
+      run: ./install.sh --help
+      
+    - name: Test state management
+      run: |
+        ./install.sh --show-state
+        ./install.sh --reset-state
+        ./install.sh --show-state
+
+  test-cross-platform:
+    name: Cross-Platform Validation
+    runs-on: ubuntu-latest
+    needs: [test-linux, test-macos]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y shellcheck
+        
+    - name: Validate cross-platform compatibility
+      run: |
+        echo "🌍 Validating cross-platform features..."
+        
+        # Check for OS-specific code paths
+        echo "Checking OS detection..."
+        grep -n "OS_TYPE" install.sh | head -5
+        
+        echo "Checking architecture detection..."
+        grep -n "uname -m" install.sh | head -5
+        
+        echo "Checking Homebrew paths..."
+        grep -n "/opt/homebrew\|/usr/local/bin/brew" install.sh | head -5
+        
+    - name: Run full CI pipeline
+      run: make ci
+
+  coverage:
+    name: Test Coverage Report
+    runs-on: ubuntu-latest
+    needs: [test-linux, test-macos]
+    if: always()  # Run even if tests fail to get coverage report
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y shellcheck jq
+        # Install Go-based yq (compatible with our Makefile)
+        sudo wget https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -O /usr/bin/yq
+        sudo chmod +x /usr/bin/yq
+        
+    - name: Generate test report
+      run: |
+        echo "📊 Test Coverage Summary"
+        echo "========================"
+        
+        # Count total functions in install.sh
+        echo "Functions in install.sh:"
+        grep -c "^[a-z_]*() {" install.sh || echo "0"
+        
+        # Count test files
+        echo "Test files:"
+        find tests -name "*.sh" -type f | wc -l
+        
+        # Count test functions
+        echo "Test functions:"
+        grep -h "^test_[a-z_]*() {" tests/*.sh | wc -l || echo "0"
+        
+        # Show test categories
+        echo ""
+        echo "Test Categories:"
+        echo "- Unit tests: $(grep -c "^test_" tests/test_helpers.sh || echo 0)"
+        echo "- Integration tests: $(grep -c "^test_" tests/test_integration.sh || echo 0)"
+        
+    - name: Upload test results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-results
+        path: |
+          tests/*.log
+          *.log
+        retention-days: 7

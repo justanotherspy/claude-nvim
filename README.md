@@ -60,6 +60,14 @@ A feature-rich, performance-optimized Neovim setup tailored for modern developme
 
 ## 🚀 **Quick Start**
 
+### **Cross-Platform Support**
+✅ **Linux** (Ubuntu, Debian, and derivatives with `apt`)  
+✅ **macOS** (with Homebrew) - Intel and Apple Silicon (M1/M2/M3) support
+
+The installation script automatically detects your operating system and uses the appropriate package manager:
+- **Linux**: Uses `apt` for system packages
+- **macOS**: Uses `brew` for package management, automatically installs Homebrew if needed
+
 ### **Installation**
 
 #### **Quick Install**
@@ -67,7 +75,7 @@ A feature-rich, performance-optimized Neovim setup tailored for modern developme
 # Clone this configuration
 git clone <repo-url> ~/.config/nvim-config
 
-# Run the installer
+# Run the installer (works on both Linux and macOS)
 cd ~/.config/nvim-config
 ./install.sh
 
@@ -76,7 +84,7 @@ nvim
 ```
 
 #### **Idempotent Installation**
-The install script is **idempotent** - it can be run multiple times safely and will only install missing components. Installation state is tracked in `~/.config/claude-nvim/state.yaml`.
+The install script is **idempotent** and **cross-platform** - it can be run multiple times safely and will only install missing components. Installation state is tracked in `~/.config/claude-nvim/state.yaml`.
 
 ```bash
 # Full installation with all features
@@ -88,8 +96,8 @@ The install script is **idempotent** - it can be run multiple times safely and w
 # Skip font installation
 ./install.sh --skip-fonts
 
-# Install with tmux configuration
-./install.sh --with-tmux
+# Full installation (includes tmux configuration)
+./install.sh
 
 # Reset state for fresh installation
 ./install.sh --reset-state
@@ -98,7 +106,10 @@ The install script is **idempotent** - it can be run multiple times safely and w
 ./install.sh --skip-fonts --skip-deps
 
 # Skip specific components
-./install.sh --skip-node --skip-python --skip-rust
+./install.sh --skip-node --skip-python
+
+# Install without tmux configuration
+./install.sh --skip-tmux
 ```
 
 **Available Flags:**
@@ -106,13 +117,14 @@ The install script is **idempotent** - it can be run multiple times safely and w
 - `--skip-deps` - Skip all dependency installations (ripgrep, fd, fzf)
 - `--skip-node` - Skip Node.js installation
 - `--skip-python` - Skip Python3 installation
-- `--skip-rust` - Skip Rust/Cargo check
 - `--skip-backup` - Skip backing up existing configuration
 - `--skip-plugins` - Skip automatic plugin installation
-- `--with-tmux` - Install optimal tmux configuration
+- `--skip-tmux` - Skip tmux installation and configuration
 - `--show-state` - Show current installation state and exit
 - `--reset-state` - Reset all installation states (for testing)
 - `-h, --help` - Show help message with all options
+
+**Note**: Tmux configuration is now installed by default as a core component of the development workflow, but can be skipped with `--skip-tmux`.
 
 #### **State Management**
 The installer tracks component installation status in `~/.config/claude-nvim/state.yaml`:
@@ -144,6 +156,22 @@ tmux_install: notinstalled
 - 🧪 **Testing friendly** - Reset state for clean testing
 - 🔄 **Config drift prevention** - Always updates configurations on each run
 - 📦 **Complete toolchain** - Installs yq, jq, and lazygit automatically
+- 🔄 **Cross-platform** - Works seamlessly on both Linux and macOS
+
+#### **Package Manager Details**
+
+**Linux (apt):**
+- System packages via `apt` (ripgrep, fd-find, jq, yq, etc.)
+- Node.js via NodeSource repository
+- Fonts installed to `/usr/share/fonts/`
+- LazyGit via GitHub releases
+
+**macOS (Homebrew):**
+- All packages via `brew` (ripgrep, fd, jq, yq, node, etc.) 
+- Fonts via `brew install --cask font-jetbrains-mono`
+- LazyGit via `brew install lazygit` (fallback to GitHub releases with ARM64/x86_64 detection)
+- Automatic Homebrew installation if not present
+- Full support for Apple Silicon (M1/M2/M3) and Intel Macs
 
 ### **Essential Keybindings**
 

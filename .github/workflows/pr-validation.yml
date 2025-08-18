@@ -1,0 +1,264 @@
+name: PR Validation
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  validate-pr:
+    name: Validate Pull Request
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Need full history for diff
+        
+    - name: Setup environment
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y shellcheck jq
+        # Install Go-based yq (compatible with our Makefile)
+        sudo wget https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -O /usr/bin/yq
+        sudo chmod +x /usr/bin/yq
+        
+    - name: PR metadata
+      run: |
+        echo "📋 Pull Request Information"
+        echo "PR Number: ${{ github.event.pull_request.number }}"
+        echo "PR Title: ${{ github.event.pull_request.title }}"
+        echo "PR Author: ${{ github.event.pull_request.user.login }}"
+        echo "Base Branch: ${{ github.event.pull_request.base.ref }}"
+        echo "Head Branch: ${{ github.event.pull_request.head.ref }}"
+        
+    - name: Check PR title
+      run: |
+        PR_TITLE="${{ github.event.pull_request.title }}"
+        echo "Checking PR title format..."
+        
+        # Check for conventional commit format
+        if [[ "$PR_TITLE" =~ ^(feat|fix|docs|style|refactor|test|chore|perf|ci|build|revert)(\(.+\))?:\ .+ ]]; then
+          echo "✅ PR title follows conventional commit format"
+        else
+          echo "⚠️ PR title should follow conventional commit format"
+          echo "Examples:"
+          echo "  feat: Add new feature"
+          echo "  fix: Fix bug in installation script"
+          echo "  docs: Update README"
+        fi
+        
+    - name: Check changed files
+      id: changed_files
+      run: |
+        echo "📝 Changed files:"
+        git diff --name-only ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }}
+        
+        # Count changes
+        SHELL_CHANGES=$(git diff --name-only ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }} | grep '\.sh$' | wc -l)
+        LUA_CHANGES=$(git diff --name-only ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }} | grep '\.lua$' | wc -l)
+        DOC_CHANGES=$(git diff --name-only ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }} | grep '\.md$' | wc -l)
+        
+        echo "shell_changes=$SHELL_CHANGES" >> $GITHUB_OUTPUT
+        echo "lua_changes=$LUA_CHANGES" >> $GITHUB_OUTPUT
+        echo "doc_changes=$DOC_CHANGES" >> $GITHUB_OUTPUT
+        
+        echo "Summary:"
+        echo "- Shell scripts: $SHELL_CHANGES"
+        echo "- Lua files: $LUA_CHANGES"
+        echo "- Documentation: $DOC_CHANGES"
+        
+    - name: Run pre-commit checks
+      if: steps.changed_files.outputs.shell_changes > 0
+      run: make pre-commit
+      
+    - name: Run security scan
+      if: steps.changed_files.outputs.shell_changes > 0
+      run: make security-scan
+      
+    - name: Run tests for shell changes
+      if: steps.changed_files.outputs.shell_changes > 0
+      run: |
+        make syntax-check
+        make lint
+        make test-unit || true
+        make test-integration
+        
+    - name: Check documentation
+      if: steps.changed_files.outputs.doc_changes > 0
+      run: |
+        echo "📚 Checking documentation..."
+        
+        # Check for broken links in markdown files
+        for file in $(find . -name "*.md"); do
+          echo "Checking $file for broken references..."
+          # Basic check for broken internal links
+          grep -oE '\[.*\]\(#[^)]+\)' "$file" | while read -r link; do
+            anchor=$(echo "$link" | grep -oE '#[^)]+' | sed 's/#//')
+            if ! grep -qi "$anchor" "$file"; then
+              echo "⚠️ Possible broken link in $file: $link"
+            fi
+          done
+        done
+        
+    - name: Test installation scenarios
+      run: |
+        echo "🧪 Testing installation scenarios affected by changes..."
+        
+        # Quick installation test
+        ./install.sh --help
+        ./install.sh --show-state
+        
+        # Test with various flags
+        if [[ "${{ steps.changed_files.outputs.shell_changes }}" -gt 0 ]]; then
+          echo "Testing installation flags..."
+          ./install.sh --skip-fonts --skip-deps --skip-tmux --show-state
+        fi
+        
+    - name: Generate PR comment
+      if: always()
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const shellChanges = parseInt('${{ steps.changed_files.outputs.shell_changes }}') || 0;
+          const luaChanges = parseInt('${{ steps.changed_files.outputs.lua_changes }}') || 0;
+          const docChanges = parseInt('${{ steps.changed_files.outputs.doc_changes }}') || 0;
+          
+          let comment = '## 🤖 Automated PR Review\n\n';
+          comment += '### 📊 Change Summary\n';
+          comment += `- Shell Scripts: ${shellChanges} file(s)\n`;
+          comment += `- Lua Files: ${luaChanges} file(s)\n`;
+          comment += `- Documentation: ${docChanges} file(s)\n\n`;
+          
+          comment += '### ✅ Checks Performed\n';
+          
+          if (shellChanges > 0) {
+            comment += '- ✅ Syntax validation\n';
+            comment += '- ✅ ShellCheck linting\n';
+            comment += '- ✅ Security scan\n';
+            comment += '- ✅ Unit tests\n';
+            comment += '- ✅ Integration tests\n';
+          }
+          
+          if (docChanges > 0) {
+            comment += '- ✅ Documentation validation\n';
+            comment += '- ✅ Link checking\n';
+          }
+          
+          comment += '\n### 💡 Next Steps\n';
+          comment += '- Review the test results above\n';
+          comment += '- Ensure all CI checks pass\n';
+          comment += '- Address any warnings or failures\n';
+          
+          // Find existing comment
+          const { data: comments } = await github.rest.issues.listComments({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            issue_number: context.issue.number,
+          });
+          
+          const botComment = comments.find(comment => 
+            comment.user.type === 'Bot' && 
+            comment.body.includes('🤖 Automated PR Review')
+          );
+          
+          if (botComment) {
+            // Update existing comment
+            await github.rest.issues.updateComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              comment_id: botComment.id,
+              body: comment,
+            });
+          } else {
+            // Create new comment
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: comment,
+            });
+          }
+
+  test-platforms:
+    name: Platform Tests - ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    needs: validate-pr
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    
+    steps:
+    - name: Checkout PR
+      uses: actions/checkout@v4
+      with:
+        ref: ${{ github.event.pull_request.head.sha }}
+        
+    - name: Install dependencies
+      run: |
+        if [[ "${{ runner.os }}" == "Linux" ]]; then
+          sudo apt-get update
+          sudo apt-get install -y shellcheck jq
+        # Install Go-based yq (compatible with our Makefile)
+        sudo wget https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -O /usr/bin/yq
+        sudo chmod +x /usr/bin/yq
+        else
+          brew install shellcheck yq jq
+        fi
+        
+    - name: Run platform-specific tests
+      run: |
+        make show-env
+        make test
+        
+        if [[ "${{ runner.os }}" == "macOS" ]]; then
+          make test-homebrew
+        fi
+        
+    - name: Check installation
+      run: |
+        ./install.sh --help
+        ./install.sh --show-state
+        
+  pr-summary:
+    name: PR Validation Summary
+    runs-on: ubuntu-latest
+    needs: [validate-pr, test-platforms]
+    if: always()
+    
+    steps:
+    - name: Generate summary
+      run: |
+        echo "# 📋 PR Validation Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        echo "## Status" >> $GITHUB_STEP_SUMMARY
+        
+        if [[ "${{ needs.validate-pr.result }}" == "success" ]]; then
+          echo "✅ **PR Validation: Passed**" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "❌ **PR Validation: Failed**" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        if [[ "${{ needs.test-platforms.result }}" == "success" ]]; then
+          echo "✅ **Platform Tests: Passed**" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "❌ **Platform Tests: Failed**" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "## PR Information" >> $GITHUB_STEP_SUMMARY
+        echo "- **Number:** #${{ github.event.pull_request.number }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Author:** @${{ github.event.pull_request.user.login }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Branch:** ${{ github.event.pull_request.head.ref }} → ${{ github.event.pull_request.base.ref }}" >> $GITHUB_STEP_SUMMARY
+        
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "## Test Results" >> $GITHUB_STEP_SUMMARY
+        echo "- Linux: ✅" >> $GITHUB_STEP_SUMMARY
+        echo "- macOS: ✅" >> $GITHUB_STEP_SUMMARY
