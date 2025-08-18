@@ -1333,29 +1333,54 @@ install_tmux() {
             esac
         fi
 
-        # Check if our config is already installed
-        if [ -f "$HOME/.tmux.conf" ] && grep -q "Claude Neovim" "$HOME/.tmux.conf" 2>/dev/null; then
-            set_state "tmux_install" "installed"
-            log_action "Tmux" "Configuration already installed" "already"
-        else
-            log_action "Tmux" "Installing configuration" "installing"
+        # Always update the config to prevent drift (similar to nvim config)
+        log_action "Tmux" "Updating configuration" "installing"
 
-            # Backup existing config
-            if [ -f "$HOME/.tmux.conf" ]; then
-                mv "$HOME/.tmux.conf" "$HOME/.tmux.conf.backup.$(date +%Y%m%d_%H%M%S)"
+        # Backup existing config if it exists and is different
+        if [ -f "$HOME/.tmux.conf" ]; then
+            if ! cmp -s "./tmux.conf" "$HOME/.tmux.conf"; then
+                backup_name="$HOME/.tmux.conf.backup.$(date +%Y%m%d_%H%M%S)"
+                cp "$HOME/.tmux.conf" "$backup_name"
+                log_action "Tmux" "Backed up existing config to $(basename "$backup_name")" "success"
             fi
+        fi
 
-            # Install new config
-            if [ -f "./tmux.conf" ] && cp ./tmux.conf "$HOME/.tmux.conf"; then
-                set_state "tmux_install" "installed"
+        # Install/update config
+        if [ -f "./tmux.conf" ] && cp ./tmux.conf "$HOME/.tmux.conf"; then
+            set_state "tmux_install" "installed"
+            log_action "Tmux" "Configuration updated successfully" "success"
+        else
+            set_state "tmux_install" "notinstalled"
+            log_action "Tmux" "Configuration update failed" "failed"
+        fi
+    else
+        # Even if marked as installed, update config to prevent drift
+        log_action "Tmux" "Checking for configuration updates" "installing"
+        
+        # Only update if files are different
+        if [ -f "./tmux.conf" ] && [ -f "$HOME/.tmux.conf" ]; then
+            if ! cmp -s "./tmux.conf" "$HOME/.tmux.conf"; then
+                # Backup and update
+                backup_name="$HOME/.tmux.conf.backup.$(date +%Y%m%d_%H%M%S)"
+                cp "$HOME/.tmux.conf" "$backup_name"
+                log_action "Tmux" "Backed up existing config to $(basename "$backup_name")" "success"
+                
+                if cp ./tmux.conf "$HOME/.tmux.conf"; then
+                    log_action "Tmux" "Configuration updated to latest version" "success"
+                else
+                    log_action "Tmux" "Configuration update failed" "failed"
+                fi
+            else
+                log_action "Tmux" "Configuration is up to date" "already"
+            fi
+        elif [ -f "./tmux.conf" ]; then
+            # No existing config, just install
+            if cp ./tmux.conf "$HOME/.tmux.conf"; then
                 log_action "Tmux" "Configuration installed" "success"
             else
-                set_state "tmux_install" "notinstalled"
                 log_action "Tmux" "Configuration installation failed" "failed"
             fi
         fi
-    else
-        log_action "Tmux" "Already configured" "skip"
     fi
 }
 

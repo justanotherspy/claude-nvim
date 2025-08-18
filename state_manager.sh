@@ -188,7 +188,7 @@ get_unchecked_components() {
 # Check if there are any unchecked components
 has_unchecked_components() {
     local unchecked_count
-    unchecked_count=$(yq eval '[to_entries | map(select(.value == "notcheckedyet"))] | length' "$STATE_FILE" 2>/dev/null)
+    unchecked_count=$(yq eval 'to_entries | map(select(.value == "notcheckedyet")) | length' "$STATE_FILE" 2>/dev/null)
     [ "$unchecked_count" -gt 0 ]
 }
 
