@@ -60,6 +60,8 @@ A feature-rich, performance-optimized Neovim setup tailored for modern developme
 ## 🚀 **Quick Start**
 
 ### **Installation**
+
+#### **Quick Install**
 ```bash
 # Clone this configuration
 git clone <repo-url> ~/.config/nvim-config
@@ -71,6 +73,37 @@ cd ~/.config/nvim-config
 # Start Neovim
 nvim
 ```
+
+#### **Install Script Options**
+The install script supports various flags to customize the installation:
+
+```bash
+# Full installation with all features
+./install.sh
+
+# Skip font installation
+./install.sh --skip-fonts
+
+# Install with tmux configuration
+./install.sh --with-tmux
+
+# Minimal installation (skip fonts and dependencies)
+./install.sh --skip-fonts --skip-deps
+
+# Skip specific components
+./install.sh --skip-node --skip-python --skip-rust
+```
+
+**Available Flags:**
+- `--skip-fonts` - Skip JetBrains Mono font installation
+- `--skip-deps` - Skip all dependency installations (ripgrep, fd, fzf)
+- `--skip-node` - Skip Node.js installation
+- `--skip-python` - Skip Python3 installation
+- `--skip-rust` - Skip Rust/Cargo check
+- `--skip-backup` - Skip backing up existing configuration
+- `--skip-plugins` - Skip automatic plugin installation
+- `--with-tmux` - Install optimal tmux configuration
+- `-h, --help` - Show help message with all options
 
 ### **Essential Keybindings**
 
@@ -139,6 +172,34 @@ Perfect setup for AI-assisted development:
 2. **Split for Neovim**: Open nvim in main pane
 3. **Split for Claude**: Run `claude` in side pane
 4. **Seamless navigation**: Use `Ctrl+h/j/k/l` to move between panes
+
+#### **Essential Tmux Shortcuts**
+
+**Session Management:**
+- `tmux new -s <name>` - Create new session with name
+- `tmux attach -t <name>` - Attach to existing session
+- `tmux list-sessions` - List all sessions
+- `Ctrl+a d` - Detach from session
+
+**Pane Management:**
+- `Ctrl+a |` - Split pane horizontally (side by side)
+- `Ctrl+a -` - Split pane vertically (top/bottom)
+- `Ctrl+a h/j/k/l` - Navigate between panes (vim-style)
+- `Alt+Arrow Keys` - Navigate between panes (arrow keys)
+- `Ctrl+a H/J/K/L` - Resize panes (hold and repeat)
+- `Ctrl+a x` - Close current pane
+
+**Window Management:**
+- `Ctrl+a c` - Create new window
+- `Ctrl+a n` - Next window
+- `Ctrl+a p` - Previous window
+- `Ctrl+a <number>` - Switch to window number
+- `Ctrl+Shift+Left/Right` - Quick window switching
+
+**Configuration:**
+- `Ctrl+a r` - Reload tmux configuration
+- Mouse support enabled - click to select panes and resize
+- Copy mode uses vim keys (`Ctrl+a [` to enter, `v` to select, `y` to copy)
 
 ### **Git Workflow**
 Streamlined version control:
