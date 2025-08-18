@@ -57,9 +57,9 @@ jobs:
         git diff --name-only ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }}
         
         # Count changes
-        SHELL_CHANGES=$(git diff --name-only ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }} | grep -c '\.sh$' || echo 0)
-        LUA_CHANGES=$(git diff --name-only ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }} | grep -c '\.lua$' || echo 0)
-        DOC_CHANGES=$(git diff --name-only ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }} | grep -c '\.md$' || echo 0)
+        SHELL_CHANGES=$(git diff --name-only ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }} | grep '\.sh$' | wc -l)
+        LUA_CHANGES=$(git diff --name-only ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }} | grep '\.lua$' | wc -l)
+        DOC_CHANGES=$(git diff --name-only ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }} | grep '\.md$' | wc -l)
         
         echo "shell_changes=$SHELL_CHANGES" >> $GITHUB_OUTPUT
         echo "lua_changes=$LUA_CHANGES" >> $GITHUB_OUTPUT
@@ -122,9 +122,9 @@ jobs:
       uses: actions/github-script@v7
       with:
         script: |
-          const shellChanges = ${{ steps.changed_files.outputs.shell_changes }};
-          const luaChanges = ${{ steps.changed_files.outputs.lua_changes }};
-          const docChanges = ${{ steps.changed_files.outputs.doc_changes }};
+          const shellChanges = parseInt('${{ steps.changed_files.outputs.shell_changes }}') || 0;
+          const luaChanges = parseInt('${{ steps.changed_files.outputs.lua_changes }}') || 0;
+          const docChanges = parseInt('${{ steps.changed_files.outputs.doc_changes }}') || 0;
           
           let comment = '## 🤖 Automated PR Review\n\n';
           comment += '### 📊 Change Summary\n';
