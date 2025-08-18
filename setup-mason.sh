@@ -166,13 +166,13 @@ if [ $EXIT_CODE -eq 0 ]; then
         echo -e "${GREEN}✅ All LSP servers are installed and ready!${NC}"
     elif echo "$OUTPUT" | grep -q "need installation"; then
         echo -e "${BLUE}📋 Status check complete - some servers need installation${NC}"
-        echo -e "${YELLOW}💡 For first-time setup, run: nvim -c ':Mason' for interactive installation${NC}"
+        echo -e "${YELLOW}💡 For first-time setup, run: nvim -c \\':Mason\\' for interactive installation${NC}"
     else
         echo -e "${GREEN}✅ Mason status check completed!${NC}"
     fi
 else
     echo -e "${YELLOW}⚠️  Status check encountered issues${NC}"
-    echo -e "${YELLOW}💡 Try running: nvim -c ':Mason' to check manually${NC}"
+    echo -e "${YELLOW}💡 Try running: nvim -c \\':Mason\\' to check manually${NC}"
 fi
 
 echo -e "${BLUE}🏁 Idempotent Mason setup finished - safe to re-run anytime${NC}"
