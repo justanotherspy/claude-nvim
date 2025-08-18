@@ -2,8 +2,33 @@
 
 # Neovim Configuration Installation Script
 # Idempotent installation with state management
+# Cross-platform support: Linux and macOS
 
 set -e
+
+# Detect operating system
+detect_os() {
+    case "$(uname -s)" in
+        Darwin*)
+            echo "macos"
+            ;;
+        Linux*)
+            echo "linux"
+            ;;
+        *)
+            echo "unsupported"
+            ;;
+    esac
+}
+
+# Set OS-specific variables
+OS_TYPE=$(detect_os)
+if [[ "$OS_TYPE" == "unsupported" ]]; then
+    echo "❌ Error: Unsupported operating system. This script supports Linux and macOS only."
+    exit 1
+fi
+
+echo "🔍 Detected OS: $OS_TYPE"
 
 # Load state management functions
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -115,36 +140,85 @@ RED='\033[0;31m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-# Track whether apt update has been run to prevent conflicts
-APT_UPDATE_DONE=false
+# Track whether package manager update has been run to prevent conflicts
+PKG_UPDATE_DONE=false
 
-# Centralized apt update function to prevent concurrent calls
-ensure_apt_updated() {
-    if [ "$APT_UPDATE_DONE" = false ]; then
-        log_action "System" "Updating package lists" "installing"
-        
-        # Retry apt update up to 2 times for network issues
-        local retry_count=0
-        local max_retries=2
-        
-        while [ $retry_count -le $max_retries ]; do
-            if sudo apt update; then
-                APT_UPDATE_DONE=true
-                log_action "System" "Package lists updated" "success"
-                return 0
-            else
-                retry_count=$((retry_count + 1))
-                if [ $retry_count -le $max_retries ]; then
-                    log_action "System" "Retrying apt update ($retry_count/$max_retries)" "installing"
-                    sleep 2
+# Cross-platform package manager update function
+ensure_package_manager_updated() {
+    if [ "$PKG_UPDATE_DONE" = false ]; then
+        case "$OS_TYPE" in
+            "linux")
+                log_action "System" "Updating apt package lists" "installing"
+                
+                # Retry apt update up to 2 times for network issues
+                local retry_count=0
+                local max_retries=2
+                
+                while [ $retry_count -le $max_retries ]; do
+                    if sudo apt update; then
+                        PKG_UPDATE_DONE=true
+                        log_action "System" "Package lists updated" "success"
+                        return 0
+                    else
+                        retry_count=$((retry_count + 1))
+                        if [ $retry_count -le $max_retries ]; then
+                            log_action "System" "Retrying apt update ($retry_count/$max_retries)" "installing"
+                            sleep 2
+                        fi
+                    fi
+                done
+                
+                log_action "System" "Package list update failed after $max_retries attempts" "failed"
+                echo -e "${YELLOW}Warning: apt update failed. Individual package installs may fail.${NC}"
+                PKG_UPDATE_DONE=true  # Set to true to avoid repeated attempts
+                ;;
+            "macos")
+                log_action "System" "Updating Homebrew" "installing"
+                
+                # Check if Homebrew is installed
+                if ! command -v brew &>/dev/null; then
+                    log_action "Homebrew" "Installing Homebrew" "installing"
+                    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+                    
+                    # Add Homebrew to PATH for current session
+                    if [[ -f "/opt/homebrew/bin/brew" ]]; then
+                        eval "$(/opt/homebrew/bin/brew shellenv)"
+                    elif [[ -f "/usr/local/bin/brew" ]]; then
+                        eval "$(/usr/local/bin/brew shellenv)"
+                    fi
                 fi
-            fi
-        done
-        
-        log_action "System" "Package list update failed after $max_retries attempts" "failed"
-        echo -e "${YELLOW}Warning: apt update failed. Individual package installs may fail.${NC}"
-        APT_UPDATE_DONE=true  # Set to true to avoid repeated attempts
+                
+                # Update Homebrew
+                if brew update; then
+                    PKG_UPDATE_DONE=true
+                    log_action "System" "Homebrew updated" "success"
+                    return 0
+                else
+                    log_action "System" "Homebrew update failed" "failed"
+                    echo -e "${YELLOW}Warning: brew update failed. Individual package installs may fail.${NC}"
+                    PKG_UPDATE_DONE=true
+                fi
+                ;;
+        esac
     fi
+}
+
+# Cross-platform package installation function
+install_package() {
+    local package_name="$1"
+    local linux_package="$2"
+    local macos_package="$3"
+    
+    ensure_package_manager_updated
+    
+    case "$OS_TYPE" in
+        "linux")
+            sudo apt install -y "${linux_package:-$package_name}"
+            ;;
+        "macos")
+            brew install "${macos_package:-$package_name}"
+            ;;
+    esac
 }
 
 # Helper function for retrying network operations
@@ -203,9 +277,24 @@ check_neovim() {
         else
             log_action "Neovim" "Not installed" "failed"
             echo -e "${RED}Please install Neovim first:${NC}"
-            echo "  curl -LO https://github.com/neovim/neovim/releases/download/v0.10.3/nvim.appimage"
-            echo "  chmod u+x nvim.appimage"
-            echo "  sudo mv nvim.appimage /usr/local/bin/nvim"
+            case "$OS_TYPE" in
+                "linux")
+                    echo "  # Using AppImage:"
+                    echo "  curl -LO https://github.com/neovim/neovim/releases/download/v0.10.3/nvim.appimage"
+                    echo "  chmod u+x nvim.appimage"
+                    echo "  sudo mv nvim.appimage /usr/local/bin/nvim"
+                    echo ""
+                    echo "  # Or using package manager:"
+                    echo "  sudo apt install -y neovim"
+                    ;;
+                "macos")
+                    echo "  # Using Homebrew:"
+                    echo "  brew install neovim"
+                    echo ""
+                    echo "  # Or using MacPorts:"
+                    echo "  sudo port install neovim"
+                    ;;
+            esac
             exit 1
         fi
     else
@@ -219,14 +308,26 @@ install_git() {
         if check_and_update_state "git_install" "command -v git"; then
             log_action "Git" "Already available" "already"
         else
-            log_action "Git" "Installing via apt" "installing"
-            ensure_apt_updated
-            if install_and_update_state "git_install" "sudo apt install -y git" "command -v git"; then
-                log_action "Git" "Installation completed" "success"
-            else
-                log_action "Git" "Installation failed" "failed"
-                exit 1
-            fi
+            case "$OS_TYPE" in
+                "linux")
+                    log_action "Git" "Installing via apt" "installing"
+                    if install_and_update_state "git_install" "install_package git" "command -v git"; then
+                        log_action "Git" "Installation completed" "success"
+                    else
+                        log_action "Git" "Installation failed" "failed"
+                        exit 1
+                    fi
+                    ;;
+                "macos")
+                    log_action "Git" "Installing via Homebrew" "installing"
+                    if install_and_update_state "git_install" "install_package git" "command -v git"; then
+                        log_action "Git" "Installation completed" "success"
+                    else
+                        log_action "Git" "Installation failed" "failed"
+                        exit 1
+                    fi
+                    ;;
+            esac
         fi
     else
         log_action "Git" "Installation" "skip"
@@ -240,17 +341,31 @@ install_yq_jq() {
         if check_and_update_state "yq_install" "command -v yq"; then
             log_action "yq" "Already available" "already"
         else
-            log_action "yq" "Installing via apt" "installing"
-            ensure_apt_updated
-            if install_and_update_state "yq_install" "sudo apt install -y yq" "command -v yq"; then
-                log_action "yq" "Installation completed" "success"
-            else
-                log_action "yq" "Installation failed" "failed"
-                echo -e "${RED}yq is required for state management. Please install manually:${NC}"
-                echo "  wget -qO- https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 | sudo tee /usr/local/bin/yq > /dev/null"
-                echo "  sudo chmod +x /usr/local/bin/yq"
-                exit 1
-            fi
+            case "$OS_TYPE" in
+                "linux")
+                    log_action "yq" "Installing via apt" "installing"
+                    if install_and_update_state "yq_install" "install_package yq" "command -v yq"; then
+                        log_action "yq" "Installation completed" "success"
+                    else
+                        log_action "yq" "Installation failed" "failed"
+                        echo -e "${RED}yq is required for state management. Please install manually:${NC}"
+                        echo "  wget -qO- https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 | sudo tee /usr/local/bin/yq > /dev/null"
+                        echo "  sudo chmod +x /usr/local/bin/yq"
+                        exit 1
+                    fi
+                    ;;
+                "macos")
+                    log_action "yq" "Installing via Homebrew" "installing"
+                    if install_and_update_state "yq_install" "install_package yq" "command -v yq"; then
+                        log_action "yq" "Installation completed" "success"
+                    else
+                        log_action "yq" "Installation failed" "failed"
+                        echo -e "${RED}yq is required for state management. Please install manually:${NC}"
+                        echo "  brew install yq"
+                        exit 1
+                    fi
+                    ;;
+            esac
         fi
     else
         log_action "yq" "Installation" "skip"
@@ -261,13 +376,24 @@ install_yq_jq() {
         if check_and_update_state "jq_install" "command -v jq"; then
             log_action "jq" "Already available" "already"
         else
-            log_action "jq" "Installing via apt" "installing"
-            ensure_apt_updated
-            if install_and_update_state "jq_install" "sudo apt install -y jq" "command -v jq"; then
-                log_action "jq" "Installation completed" "success"
-            else
-                log_action "jq" "Installation failed" "failed"
-            fi
+            case "$OS_TYPE" in
+                "linux")
+                    log_action "jq" "Installing via apt" "installing"
+                    if install_and_update_state "jq_install" "install_package jq" "command -v jq"; then
+                        log_action "jq" "Installation completed" "success"
+                    else
+                        log_action "jq" "Installation failed" "failed"
+                    fi
+                    ;;
+                "macos")
+                    log_action "jq" "Installing via Homebrew" "installing"
+                    if install_and_update_state "jq_install" "install_package jq" "command -v jq"; then
+                        log_action "jq" "Installation completed" "success"
+                    else
+                        log_action "jq" "Installation failed" "failed"
+                    fi
+                    ;;
+            esac
         fi
     else
         log_action "jq" "Installation" "skip"
@@ -286,43 +412,65 @@ install_dependencies() {
         if check_and_update_state "ripgrep_install" "command -v rg"; then
             log_action "Ripgrep" "Already available" "already"
         else
-            log_action "Ripgrep" "Installing via apt" "installing"
-            ensure_apt_updated
-            if install_and_update_state "ripgrep_install" "sudo apt install -y ripgrep" "command -v rg"; then
-                log_action "Ripgrep" "Installation completed" "success"
-            else
-                log_action "Ripgrep" "Installation failed" "failed"
-            fi
+            case "$OS_TYPE" in
+                "linux")
+                    log_action "Ripgrep" "Installing via apt" "installing"
+                    if install_and_update_state "ripgrep_install" "install_package ripgrep" "command -v rg"; then
+                        log_action "Ripgrep" "Installation completed" "success"
+                    else
+                        log_action "Ripgrep" "Installation failed" "failed"
+                    fi
+                    ;;
+                "macos")
+                    log_action "Ripgrep" "Installing via Homebrew" "installing"
+                    if install_and_update_state "ripgrep_install" "install_package ripgrep" "command -v rg"; then
+                        log_action "Ripgrep" "Installation completed" "success"
+                    else
+                        log_action "Ripgrep" "Installation failed" "failed"
+                    fi
+                    ;;
+            esac
         fi
     else
         log_action "Ripgrep" "Installation" "skip"
     fi
     
-# Helper function to install fd with proper symlink handling
+# Helper function to install fd with cross-platform support
 install_fd_binary() {
-    # Ensure apt is updated first
-    ensure_apt_updated
-    
-    # Install fd-find package
-    if ! sudo apt install -y fd-find; then
-        echo -e "${RED}Failed to install fd-find package${NC}"
-        return 1
-    fi
-    
-    # Check if fdfind binary exists
-    local fdfind_path
-    fdfind_path=$(which fdfind 2>/dev/null)
-    if [[ -z "$fdfind_path" ]]; then
-        echo -e "${RED}fdfind binary not found after installation${NC}"
-        return 1
-    fi
-    
-    # Create symlink for fd command
-    log_action "fd" "Creating symlink for fd command" "installing"
-    if ! sudo ln -sf "$fdfind_path" /usr/local/bin/fd; then
-        echo -e "${YELLOW}Warning: Failed to create fd symlink, but fdfind is available${NC}"
-        # Don't fail completely as fdfind still works
-    fi
+    case "$OS_TYPE" in
+        "linux")
+            # Ensure package manager is updated first
+            ensure_package_manager_updated
+            
+            # Install fd-find package on Linux
+            if ! install_package fd fd-find; then
+                echo -e "${RED}Failed to install fd-find package${NC}"
+                return 1
+            fi
+            
+            # Check if fdfind binary exists
+            local fdfind_path
+            fdfind_path=$(which fdfind 2>/dev/null)
+            if [[ -z "$fdfind_path" ]]; then
+                echo -e "${RED}fdfind binary not found after installation${NC}"
+                return 1
+            fi
+            
+            # Create symlink for fd command
+            log_action "fd" "Creating symlink for fd command" "installing"
+            if ! sudo ln -sf "$fdfind_path" /usr/local/bin/fd; then
+                echo -e "${YELLOW}Warning: Failed to create fd symlink, but fdfind is available${NC}"
+                # Don't fail completely as fdfind still works
+            fi
+            ;;
+        "macos")
+            # On macOS, fd is available directly via Homebrew
+            if ! install_package fd; then
+                echo -e "${RED}Failed to install fd package${NC}"
+                return 1
+            fi
+            ;;
+    esac
     
     # Verify fd command works (either as fd or fdfind)
     if command -v fd &>/dev/null || command -v fdfind &>/dev/null; then
@@ -338,7 +486,14 @@ install_fd_binary() {
         if check_and_update_state "fd_install" "command -v fd || command -v fdfind"; then
             log_action "fd" "Already available" "already"
         else
-            log_action "fd" "Installing via apt" "installing"
+            case "$OS_TYPE" in
+                "linux")
+                    log_action "fd" "Installing via apt" "installing"
+                    ;;
+                "macos")
+                    log_action "fd" "Installing via Homebrew" "installing"
+                    ;;
+            esac
             if install_fd_binary; then
                 set_state "fd_install" "installed"
                 log_action "fd" "Installation completed" "success"
@@ -356,14 +511,26 @@ install_fd_binary() {
         if check_and_update_state "fzf_install" "command -v fzf"; then
             log_action "fzf" "Already available" "already"
         else
-            log_action "fzf" "Installing from source" "installing"
-            install_cmd="git clone --depth 1 https://github.com/junegunn/fzf.git ~/.fzf && ~/.fzf/install --all --no-bash --no-zsh --no-fish"
-            if install_and_update_state "fzf_install" "$install_cmd" "command -v fzf || test -f ~/.fzf/bin/fzf"; then
-                log_action "fzf" "Installation completed" "success"
-                export PATH="$HOME/.fzf/bin:$PATH"
-            else
-                log_action "fzf" "Installation failed" "failed"
-            fi
+            case "$OS_TYPE" in
+                "linux")
+                    log_action "fzf" "Installing from source" "installing"
+                    install_cmd="git clone --depth 1 https://github.com/junegunn/fzf.git ~/.fzf && ~/.fzf/install --all --no-bash --no-zsh --no-fish"
+                    if install_and_update_state "fzf_install" "$install_cmd" "command -v fzf || test -f ~/.fzf/bin/fzf"; then
+                        log_action "fzf" "Installation completed" "success"
+                        export PATH="$HOME/.fzf/bin:$PATH"
+                    else
+                        log_action "fzf" "Installation failed" "failed"
+                    fi
+                    ;;
+                "macos")
+                    log_action "fzf" "Installing via Homebrew" "installing"
+                    if install_and_update_state "fzf_install" "install_package fzf" "command -v fzf"; then
+                        log_action "fzf" "Installation completed" "success"
+                    else
+                        log_action "fzf" "Installation failed" "failed"
+                    fi
+                    ;;
+            esac
         fi
     else
         log_action "fzf" "Installation" "skip"
@@ -381,13 +548,25 @@ install_node() {
         if check_and_update_state "node_install" "command -v node"; then
             log_action "Node.js" "Already available" "already"
         else
-            log_action "Node.js" "Installing LTS version" "installing"
-            install_cmd="curl -fsSL https://deb.nodesource.com/setup_lts.x | sudo -E bash - && sudo apt install -y nodejs"
-            if install_and_update_state "node_install" "$install_cmd" "command -v node"; then
-                log_action "Node.js" "Installation completed" "success"
-            else
-                log_action "Node.js" "Installation failed" "failed"
-            fi
+            case "$OS_TYPE" in
+                "linux")
+                    log_action "Node.js" "Installing LTS version via NodeSource" "installing"
+                    install_cmd="curl -fsSL https://deb.nodesource.com/setup_lts.x | sudo -E bash - && install_package nodejs"
+                    if install_and_update_state "node_install" "$install_cmd" "command -v node"; then
+                        log_action "Node.js" "Installation completed" "success"
+                    else
+                        log_action "Node.js" "Installation failed" "failed"
+                    fi
+                    ;;
+                "macos")
+                    log_action "Node.js" "Installing LTS version via Homebrew" "installing"
+                    if install_and_update_state "node_install" "install_package node" "command -v node"; then
+                        log_action "Node.js" "Installation completed" "success"
+                    else
+                        log_action "Node.js" "Installation failed" "failed"
+                    fi
+                    ;;
+            esac
         fi
     else
         log_action "Node.js" "Installation" "skip"
@@ -405,13 +584,24 @@ install_python() {
         if check_and_update_state "python_install" "command -v python3"; then
             log_action "Python3" "Already available" "already"
         else
-            log_action "Python3" "Installing via apt" "installing"
-            ensure_apt_updated
-            if install_and_update_state "python_install" "sudo apt install -y python3 python3-pip" "command -v python3"; then
-                log_action "Python3" "Installation completed" "success"
-            else
-                log_action "Python3" "Installation failed" "failed"
-            fi
+            case "$OS_TYPE" in
+                "linux")
+                    log_action "Python3" "Installing via apt" "installing"
+                    if install_and_update_state "python_install" "install_package python3 python3; install_package python3-pip python3-pip" "command -v python3"; then
+                        log_action "Python3" "Installation completed" "success"
+                    else
+                        log_action "Python3" "Installation failed" "failed"
+                    fi
+                    ;;
+                "macos")
+                    log_action "Python3" "Installing via Homebrew" "installing"
+                    if install_and_update_state "python_install" "install_package python3 python" "command -v python3"; then
+                        log_action "Python3" "Installation completed" "success"
+                    else
+                        log_action "Python3" "Installation failed" "failed"
+                    fi
+                    ;;
+            esac
         fi
     else
         log_action "Python3" "Installation" "skip"
@@ -426,17 +616,39 @@ install_fonts() {
     fi
     
     if needs_action "fonts_install"; then
-        if check_and_update_state "fonts_install" "fc-list | grep -q 'JetBrains Mono'"; then
-            log_action "JetBrains Mono" "Already installed" "already"
-        else
-            log_action "JetBrains Mono" "Downloading and installing" "installing"
-            install_cmd="wget -q --show-progress https://github.com/JetBrains/JetBrainsMono/releases/download/v2.304/JetBrainsMono-2.304.zip -O /tmp/JetBrainsMono.zip && sudo unzip -q /tmp/JetBrainsMono.zip -d /usr/share/fonts/ && sudo fc-cache -f -v > /dev/null 2>&1 && rm /tmp/JetBrainsMono.zip"
-            if install_and_update_state "fonts_install" "$install_cmd" "fc-list | grep -q 'JetBrains Mono'"; then
-                log_action "JetBrains Mono" "Installation completed" "success"
-            else
-                log_action "JetBrains Mono" "Installation failed" "failed"
-            fi
-        fi
+        case "$OS_TYPE" in
+            "linux")
+                if check_and_update_state "fonts_install" "fc-list | grep -q 'JetBrains Mono'"; then
+                    log_action "JetBrains Mono" "Already installed" "already"
+                else
+                    log_action "JetBrains Mono" "Downloading and installing" "installing"
+                    install_cmd="wget -q --show-progress https://github.com/JetBrains/JetBrainsMono/releases/download/v2.304/JetBrainsMono-2.304.zip -O /tmp/JetBrainsMono.zip && sudo unzip -q /tmp/JetBrainsMono.zip -d /usr/share/fonts/ && sudo fc-cache -f -v > /dev/null 2>&1 && rm /tmp/JetBrainsMono.zip"
+                    if install_and_update_state "fonts_install" "$install_cmd" "fc-list | grep -q 'JetBrains Mono'"; then
+                        log_action "JetBrains Mono" "Installation completed" "success"
+                    else
+                        log_action "JetBrains Mono" "Installation failed" "failed"
+                    fi
+                fi
+                ;;
+            "macos")
+                if check_and_update_state "fonts_install" "system_profiler SPFontsDataType | grep -q 'JetBrains Mono'"; then
+                    log_action "JetBrains Mono" "Already installed" "already"
+                else
+                    log_action "JetBrains Mono" "Installing via Homebrew" "installing"
+                    if install_and_update_state "fonts_install" "install_package font-jetbrains-mono homebrew/cask-fonts/font-jetbrains-mono" "system_profiler SPFontsDataType | grep -q 'JetBrains Mono'"; then
+                        log_action "JetBrains Mono" "Installation completed" "success"
+                    else
+                        log_action "JetBrains Mono" "Installation failed, trying manual installation" "installing"
+                        install_cmd="curl -L https://github.com/JetBrains/JetBrainsMono/releases/download/v2.304/JetBrainsMono-2.304.zip -o /tmp/JetBrainsMono.zip && unzip -q /tmp/JetBrainsMono.zip -d /tmp/JetBrainsMono && cp -R /tmp/JetBrainsMono/fonts/ttf/*.ttf ~/Library/Fonts/ && rm -rf /tmp/JetBrainsMono*"
+                        if install_and_update_state "fonts_install" "$install_cmd" "ls ~/Library/Fonts/ | grep -q JetBrainsMono"; then
+                            log_action "JetBrains Mono" "Manual installation completed" "success"
+                        else
+                            log_action "JetBrains Mono" "Installation failed" "failed"
+                        fi
+                    fi
+                fi
+                ;;
+        esac
     else
         log_action "JetBrains Mono" "Installation" "skip"
     fi
@@ -558,7 +770,15 @@ install_lazygit_binary() {
     fi
     
     log_action "LazyGit" "Downloading version $version" "installing"
-    local download_url="https://github.com/jesseduffield/lazygit/releases/latest/download/lazygit_${version}_Linux_x86_64.tar.gz"
+    local download_url
+    case "$OS_TYPE" in
+        "linux")
+            download_url="https://github.com/jesseduffield/lazygit/releases/latest/download/lazygit_${version}_Linux_x86_64.tar.gz"
+            ;;
+        "macos")
+            download_url="https://github.com/jesseduffield/lazygit/releases/latest/download/lazygit_${version}_Darwin_x86_64.tar.gz"
+            ;;
+    esac
     
     # Download with timeout and error checking
     if ! curl -L --connect-timeout 30 --max-time 120 -o "$temp_dir/lazygit.tar.gz" "$download_url"; then
@@ -598,10 +818,32 @@ install_lazygit_binary() {
     fi
     
     # Install to system
-    if ! sudo install lazygit /usr/local/bin/; then
-        echo -e "${RED}Failed to install LazyGit to /usr/local/bin${NC}"
-        return 1
-    fi
+    case "$OS_TYPE" in
+        "linux")
+            if ! sudo install lazygit /usr/local/bin/; then
+                echo -e "${RED}Failed to install LazyGit to /usr/local/bin${NC}"
+                return 1
+            fi
+            ;;
+        "macos")
+            # Try /usr/local/bin first, fall back to user directory if needed
+            if sudo install lazygit /usr/local/bin/ 2>/dev/null; then
+                log_action "LazyGit" "Installed to /usr/local/bin" "success"
+            elif install lazygit "$HOME/.local/bin/" 2>/dev/null; then
+                mkdir -p "$HOME/.local/bin"
+                cp lazygit "$HOME/.local/bin/"
+                chmod +x "$HOME/.local/bin/lazygit"
+                # Add to PATH if not already there
+                if [[ ":$PATH:" != *":$HOME/.local/bin:"* ]]; then
+                    export PATH="$HOME/.local/bin:$PATH"
+                fi
+                log_action "LazyGit" "Installed to $HOME/.local/bin" "success"
+            else
+                echo -e "${RED}Failed to install LazyGit${NC}"
+                return 1
+            fi
+            ;;
+    esac
     
     # Verify installation
     if ! command -v lazygit &>/dev/null; then
@@ -618,16 +860,38 @@ install_lazygit() {
         if check_and_update_state "lazygit_install" "command -v lazygit"; then
             log_action "LazyGit" "Already available" "already"
         else
-            log_action "LazyGit" "Installing via GitHub releases" "installing"
-            if install_lazygit_binary; then
-                set_state "lazygit_install" "installed"
-                log_action "LazyGit" "Installation completed" "success"
-            else
-                set_state "lazygit_install" "notinstalled"
-                log_action "LazyGit" "Installation failed" "failed"
-                echo -e "${YELLOW}Note: LazyGit installation failed. You can install manually:${NC}"
-                echo "  https://github.com/jesseduffield/lazygit#installation"
-            fi
+            case "$OS_TYPE" in
+                "linux")
+                    log_action "LazyGit" "Installing via GitHub releases" "installing"
+                    if install_lazygit_binary; then
+                        set_state "lazygit_install" "installed"
+                        log_action "LazyGit" "Installation completed" "success"
+                    else
+                        set_state "lazygit_install" "notinstalled"
+                        log_action "LazyGit" "Installation failed" "failed"
+                        echo -e "${YELLOW}Note: LazyGit installation failed. You can install manually:${NC}"
+                        echo "  https://github.com/jesseduffield/lazygit#installation"
+                    fi
+                    ;;
+                "macos")
+                    log_action "LazyGit" "Installing via Homebrew" "installing"
+                    if install_and_update_state "lazygit_install" "install_package lazygit" "command -v lazygit"; then
+                        log_action "LazyGit" "Installation completed" "success"
+                    else
+                        log_action "LazyGit" "Homebrew installation failed, trying GitHub releases" "installing"
+                        if install_lazygit_binary; then
+                            set_state "lazygit_install" "installed"
+                            log_action "LazyGit" "GitHub installation completed" "success"
+                        else
+                            set_state "lazygit_install" "notinstalled"
+                            log_action "LazyGit" "Installation failed" "failed"
+                            echo -e "${YELLOW}Note: LazyGit installation failed. You can install manually:${NC}"
+                            echo "  brew install lazygit"
+                            echo "  Or: https://github.com/jesseduffield/lazygit#installation"
+                        fi
+                    fi
+                    ;;
+            esac
         fi
     else
         log_action "LazyGit" "Already installed" "skip"
@@ -644,9 +908,16 @@ install_tmux() {
     if needs_action "tmux_install"; then
         # Check if tmux is installed
         if ! command -v tmux &> /dev/null; then
-            log_action "Tmux" "Installing tmux binary" "installing"
-            ensure_apt_updated
-            sudo apt install -y tmux
+            case "$OS_TYPE" in
+                "linux")
+                    log_action "Tmux" "Installing tmux binary via apt" "installing"
+                    install_package tmux
+                    ;;
+                "macos")
+                    log_action "Tmux" "Installing tmux binary via Homebrew" "installing"
+                    install_package tmux
+                    ;;
+            esac
         fi
         
         # Check if our config is already installed

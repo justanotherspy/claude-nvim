@@ -10,6 +10,7 @@ This is a Neovim configuration project aimed at creating a feature-rich, perform
 - Terminal integration
 - Git workflow integration
 - LSP support for syntax features
+- Cross-platform support (Linux and macOS)
 - Optimized for use with Claude CLI, Alacritty, Bash, Neovim, and Tmux
 
 ## Language Support
@@ -42,11 +43,11 @@ The Neovim configuration should be organized in `~/.config/nvim/` with:
 
 ## Development Commands
 
-### Idempotent Installation
-The project uses an idempotent installation system with state management:
+### Cross-Platform Installation
+The project uses an idempotent, cross-platform installation system with automatic OS detection:
 
 ```bash
-# Run full installation (safe to run multiple times)
+# Run full installation (works on Linux and macOS)
 ./install.sh
 
 # Check current installation state
@@ -58,6 +59,11 @@ The project uses an idempotent installation system with state management:
 # Install specific components only
 ./install.sh --skip-fonts --skip-deps
 ```
+
+**Platform Detection:**
+- Automatically detects Linux vs macOS
+- Uses appropriate package manager (apt vs brew)
+- Handles platform-specific installation paths and requirements
 
 ### State Management
 Installation state is tracked in `~/.config/claude-nvim/state.yaml` using **yq** for YAML processing:
