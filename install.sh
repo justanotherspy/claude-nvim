@@ -175,17 +175,10 @@ ensure_package_manager_updated() {
             "macos")
                 log_action "System" "Updating Homebrew" "installing"
                 
-                # Check if Homebrew is installed
-                if ! command -v brew &>/dev/null; then
-                    log_action "Homebrew" "Installing Homebrew" "installing"
-                    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-                    
-                    # Add Homebrew to PATH for current session
-                    if [[ -f "/opt/homebrew/bin/brew" ]]; then
-                        eval "$(/opt/homebrew/bin/brew shellenv)"
-                    elif [[ -f "/usr/local/bin/brew" ]]; then
-                        eval "$(/usr/local/bin/brew shellenv)"
-                    fi
+                # Ensure Homebrew is installed and properly configured
+                if ! ensure_homebrew_installed; then
+                    log_action "Homebrew" "Failed to install or configure Homebrew" "failed"
+                    return 1
                 fi
                 
                 # Update Homebrew
@@ -200,6 +193,123 @@ ensure_package_manager_updated() {
                 fi
                 ;;
         esac
+    fi
+}
+
+# Ensure Homebrew is installed and properly configured (macOS only)
+ensure_homebrew_installed() {
+    # Only run on macOS
+    if [[ "$OS_TYPE" != "macos" ]]; then
+        return 0
+    fi
+    
+    local arch=$(uname -m)
+    local expected_brew_path
+    local homebrew_prefix
+    
+    # Determine expected paths based on architecture
+    if [[ "$arch" == "arm64" ]]; then
+        expected_brew_path="/opt/homebrew/bin/brew"
+        homebrew_prefix="/opt/homebrew"
+        log_action "Homebrew" "Detected Apple Silicon (ARM64)" "installing"
+    else
+        expected_brew_path="/usr/local/bin/brew"
+        homebrew_prefix="/usr/local"
+        log_action "Homebrew" "Detected Intel (x86_64)" "installing"
+    fi
+    
+    # Check if Homebrew is already installed and accessible
+    if command -v brew &>/dev/null; then
+        local current_brew_path=$(which brew)
+        log_action "Homebrew" "Found at $current_brew_path" "already"
+        
+        # Verify it's in the expected location for the architecture
+        if [[ "$current_brew_path" == "$expected_brew_path" ]]; then
+            log_action "Homebrew" "Correct path for architecture" "success"
+        else
+            log_action "Homebrew" "Unexpected path: $current_brew_path (expected: $expected_brew_path)" "installing"
+        fi
+        return 0
+    fi
+    
+    # Check if Homebrew exists but isn't in PATH
+    if [[ -f "$expected_brew_path" ]]; then
+        log_action "Homebrew" "Found but not in PATH, configuring..." "installing"
+        eval "$($expected_brew_path shellenv)"
+        export PATH="$homebrew_prefix/bin:$PATH"
+        
+        if command -v brew &>/dev/null; then
+            log_action "Homebrew" "Successfully added to PATH" "success"
+            return 0
+        fi
+    fi
+    
+    # Install Homebrew if not found
+    log_action "Homebrew" "Installing Homebrew for $arch architecture" "installing"
+    
+    # Verify we can download the install script securely
+    local install_script_url="https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh"
+    local install_script="/tmp/homebrew_install.sh"
+    
+    if ! curl -fsSL "$install_script_url" -o "$install_script"; then
+        echo -e "${RED}Failed to download Homebrew install script${NC}"
+        return 1
+    fi
+    
+    # Basic validation of the install script
+    if ! grep -q "Homebrew" "$install_script"; then
+        echo -e "${RED}Downloaded script doesn't appear to be the Homebrew installer${NC}"
+        rm -f "$install_script"
+        return 1
+    fi
+    
+    # Run the installer
+    if /bin/bash "$install_script"; then
+        rm -f "$install_script"
+        log_action "Homebrew" "Installation completed" "success"
+        
+        # Configure environment for current session
+        if [[ -f "$expected_brew_path" ]]; then
+            eval "$($expected_brew_path shellenv)"
+            export PATH="$homebrew_prefix/bin:$PATH"
+            
+            # Verify installation
+            if command -v brew &>/dev/null; then
+                log_action "Homebrew" "Successfully configured and accessible" "success"
+                
+                # Add to shell profile for persistence
+                local shell_profile
+                case "$SHELL" in
+                    */zsh)
+                        shell_profile="$HOME/.zshrc"
+                        ;;
+                    */bash)
+                        shell_profile="$HOME/.bash_profile"
+                        ;;
+                    *)
+                        shell_profile="$HOME/.profile"
+                        ;;
+                esac
+                
+                if [[ -f "$shell_profile" ]] && ! grep -q "$homebrew_prefix/bin" "$shell_profile"; then
+                    echo "# Added by Neovim installation script" >> "$shell_profile"
+                    echo "eval \"\$($expected_brew_path shellenv)\"" >> "$shell_profile"
+                    log_action "Homebrew" "Added to $shell_profile for future sessions" "success"
+                fi
+                
+                return 0
+            else
+                echo -e "${RED}Homebrew installed but not accessible${NC}"
+                return 1
+            fi
+        else
+            echo -e "${RED}Homebrew installation completed but binary not found at expected path${NC}"
+            return 1
+        fi
+    else
+        rm -f "$install_script"
+        echo -e "${RED}Homebrew installation failed${NC}"
+        return 1
     fi
 }
 
@@ -219,6 +329,80 @@ install_package() {
             brew install "${macos_package:-$package_name}"
             ;;
     esac
+}
+
+# Cross-platform checksum verification function
+verify_checksum() {
+    local file="$1"
+    local expected_checksum="$2"
+    local algorithm="${3:-sha256}"
+    
+    if [[ -z "$expected_checksum" ]]; then
+        log_action "Checksum" "No checksum provided, skipping verification" "skip"
+        return 0
+    fi
+    
+    local actual_checksum
+    case "$algorithm" in
+        sha256)
+            if command -v shasum &>/dev/null; then
+                actual_checksum=$(shasum -a 256 "$file" | cut -d' ' -f1)
+            elif command -v sha256sum &>/dev/null; then
+                actual_checksum=$(sha256sum "$file" | cut -d' ' -f1)
+            else
+                log_action "Checksum" "No SHA256 tool available (shasum/sha256sum)" "failed"
+                return 1
+            fi
+            ;;
+        *)
+            log_action "Checksum" "Unsupported algorithm: $algorithm" "failed"
+            return 1
+            ;;
+    esac
+    
+    if [[ "$actual_checksum" == "$expected_checksum" ]]; then
+        log_action "Checksum" "Verification successful" "success"
+        return 0
+    else
+        log_action "Checksum" "Verification failed" "failed"
+        echo -e "${RED}Expected: $expected_checksum${NC}"
+        echo -e "${RED}Actual:   $actual_checksum${NC}"
+        return 1
+    fi
+}
+
+# Enhanced download function with checksum verification
+download_and_verify() {
+    local url="$1"
+    local output_file="$2"
+    local expected_checksum="$3"
+    local description="$4"
+    
+    log_action "Download" "Downloading $description" "installing"
+    
+    # Download with timeout and error checking
+    if ! retry_network_operation "Download $description" "curl -L --connect-timeout 30 --max-time 120 -o '$output_file' '$url'"; then
+        echo -e "${RED}Failed to download $description${NC}"
+        return 1
+    fi
+    
+    # Verify file exists and has content
+    if [[ ! -f "$output_file" ]] || [[ ! -s "$output_file" ]]; then
+        echo -e "${RED}Downloaded file is empty or doesn't exist${NC}"
+        return 1
+    fi
+    
+    # Verify checksum if provided
+    if [[ -n "$expected_checksum" ]]; then
+        if ! verify_checksum "$output_file" "$expected_checksum" "sha256"; then
+            echo -e "${RED}Checksum verification failed for $description${NC}"
+            rm -f "$output_file"
+            return 1
+        fi
+    fi
+    
+    log_action "Download" "$description downloaded and verified" "success"
+    return 0
 }
 
 # Helper function for retrying network operations
