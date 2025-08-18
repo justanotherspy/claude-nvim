@@ -32,6 +32,7 @@ echo "🔍 Detected OS: $OS_TYPE"
 
 # Load state management functions
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck disable=SC1091  # External file not analyzed by shellcheck
 source "$SCRIPT_DIR/state_manager.sh"
 
 # Default values for flags
