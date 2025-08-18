@@ -21,6 +21,7 @@ A feature-rich, performance-optimized Neovim setup tailored for modern developme
 - **Syntax Highlighting**: Advanced treesitter-based highlighting
 - **Linting & Formatting**: Real-time code analysis and auto-formatting
 - **Git Integration**: LazyGit, Gitsigns, and Fugitive for complete Git workflow
+- **YAML/JSON Processing**: Built-in yq and jq tools for configuration management
 
 ### 🔍 **Fuzzy Finding & Search**
 - **Telescope**: Advanced file and text searching with live preview
@@ -120,6 +121,8 @@ The installer tracks component installation status in `~/.config/claude-nvim/sta
 # Component states: notcheckedyet, installed, notinstalled
 neovim_check: installed
 git_install: installed
+yq_install: installed
+jq_install: installed
 ripgrep_install: installed
 fd_install: installed
 fzf_install: installed
@@ -130,6 +133,7 @@ config_backup: installed
 config_install: installed
 lazyvim_install: installed
 plugins_install: installed
+lazygit_install: installed
 tmux_install: notinstalled
 ```
 
@@ -138,6 +142,8 @@ tmux_install: notinstalled
 - ⚡ **Fast execution** - Skips already installed components
 - 🔍 **Status visibility** - Easy to see what's installed
 - 🧪 **Testing friendly** - Reset state for clean testing
+- 🔄 **Config drift prevention** - Always updates configurations on each run
+- 📦 **Complete toolchain** - Installs yq, jq, and lazygit automatically
 
 ### **Essential Keybindings**
 

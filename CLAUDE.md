@@ -61,9 +61,15 @@ The project uses an idempotent installation system with state management:
 
 ### State Management
 Installation state is tracked in `~/.config/claude-nvim/state.yaml` using **yq** for YAML processing:
-- **yq** - YAML processor for reading/writing state (available at `/home/daniel/go/bin/yq`)
+- **yq/jq** - YAML/JSON processors installed automatically for state management
 - **States**: `notcheckedyet`, `installed`, `notinstalled`
-- **Components tracked**: neovim_check, git_install, ripgrep_install, fd_install, fzf_install, node_install, python_install, fonts_install, config_backup, config_install, lazyvim_install, plugins_install, tmux_install
+- **Components tracked**: neovim_check, git_install, yq_install, jq_install, ripgrep_install, fd_install, fzf_install, node_install, python_install, fonts_install, config_backup, config_install, lazyvim_install, plugins_install, lazygit_install, tmux_install
+
+### Key Features
+- **Auto-checking**: All `notcheckedyet` components are automatically processed on each run
+- **Config drift prevention**: Configurations are always copied from repo to prevent local drift
+- **Complete toolchain**: Includes LazyGit for Git workflow, yq/jq for data processing
+- **Dependency management**: Automatically installs required tools (yq, jq, lazygit)
 
 ### Testing Configuration
 ```bash
