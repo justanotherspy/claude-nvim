@@ -60,6 +60,22 @@ The project uses an idempotent, cross-platform installation system with automati
 ./install.sh --skip-fonts --skip-deps
 ```
 
+### Testing with Makefile
+**IMPORTANT**: Use the Makefile for testing installation as a sanity check. The install script is idempotent and the repository is the source of truth for configuration:
+
+```bash
+# Deploy latest repo config to local machine (primary testing method)
+make install
+
+# Test installation with various flags and configurations
+make test-install
+
+# Run all validation checks
+make test
+```
+
+The `make install` target ensures that any changes made to the repository configuration files are properly deployed to the local machine, preventing configuration drift.
+
 **Platform Detection:**
 - Automatically detects Linux vs macOS
 - Uses appropriate package manager (apt vs brew)
