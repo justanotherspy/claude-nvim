@@ -160,14 +160,17 @@ tmux_install: notinstalled
 
 #### **Mason LSP Server Setup**
 
-If you encounter issues with LSP servers not installing automatically (especially on macOS ARM), use the dedicated Mason setup script:
+If you encounter issues with LSP servers not installing automatically (especially on macOS ARM), use these approaches:
 
 ```bash
-# Run Mason LSP server installation
+# Check current installation status (idempotent)
 ./setup-mason.sh
 
-# Or manually install LSP servers in Neovim
+# Or manually install LSP servers in Neovim (recommended for first-time setup)
 nvim -c ':Mason'
+
+# Force reinstall all plugins and LSP servers
+./install.sh --reset-state
 ```
 
 **Mason Features:**
