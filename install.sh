@@ -212,7 +212,7 @@ install_dependencies() {
             log_action "fd" "Already available" "already"
         else
             log_action "fd" "Installing via apt" "installing"
-            install_cmd="sudo apt update && sudo apt install -y fd-find && sudo ln -sf \$(which fdfind) /usr/local/bin/fd 2>/dev/null || true"
+            install_cmd="sudo apt update && sudo apt install -y fd-find && sudo ln -sf $(which fdfind) /usr/local/bin/fd 2>/dev/null || true"
             if install_and_update_state "fd_install" "$install_cmd" "command -v fd"; then
                 log_action "fd" "Installation completed" "success"
             else

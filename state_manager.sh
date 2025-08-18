@@ -6,8 +6,40 @@
 STATE_DIR="$HOME/.config/claude-nvim"
 STATE_FILE="$STATE_DIR/state.yaml"
 
+# Valid component names (whitelist for security)
+VALID_COMPONENTS=(
+    "neovim_check" "git_install" "ripgrep_install" "fd_install" 
+    "fzf_install" "node_install" "python_install" "fonts_install"
+    "config_backup" "config_install" "lazyvim_install" "plugins_install" "tmux_install"
+)
+
+# Validate component name for security
+validate_component_name() {
+    local component="$1"
+    local valid_component
+    
+    # Check if component name matches our whitelist
+    for valid_component in "${VALID_COMPONENTS[@]}"; do
+        if [[ "$component" == "$valid_component" ]]; then
+            return 0
+        fi
+    done
+    
+    echo "Error: Invalid component name '$component'" >&2
+    return 1
+}
+
 # Ensure state directory exists
 init_state() {
+    # Check if yq is available
+    if ! command -v yq &>/dev/null; then
+        echo "Error: yq is required for state management but not found in PATH"
+        echo "Please install yq: https://github.com/mikefarah/yq/#install"
+        echo "On Ubuntu/Debian: sudo apt install yq"
+        echo "Or download from: https://github.com/mikefarah/yq/releases"
+        exit 1
+    fi
+    
     mkdir -p "$STATE_DIR"
     
     # Create initial state file if it doesn't exist
@@ -35,6 +67,10 @@ EOF
 # Get state of a component
 get_state() {
     local component="$1"
+    
+    # Validate component name for security
+    validate_component_name "$component" || return 1
+    
     yq eval ".${component}" "$STATE_FILE" 2>/dev/null || echo "notcheckedyet"
 }
 
@@ -43,13 +79,16 @@ set_state() {
     local component="$1"
     local state="$2"
     
+    # Validate component name for security
+    validate_component_name "$component" || return 1
+    
     # Validate state value
     case "$state" in
         notcheckedyet|installed|notinstalled)
             yq eval ".${component} = \"${state}\"" -i "$STATE_FILE"
             ;;
         *)
-            echo "Invalid state: $state. Must be: notcheckedyet, installed, notinstalled"
+            echo "Invalid state: $state. Must be: notcheckedyet, installed, notinstalled" >&2
             return 1
             ;;
     esac
@@ -58,6 +97,10 @@ set_state() {
 # Check if component needs installation/checking
 needs_action() {
     local component="$1"
+    
+    # Validate component name for security
+    validate_component_name "$component" || return 1
+    
     local current_state=$(get_state "$component")
     
     case "$current_state" in
@@ -78,6 +121,11 @@ check_and_update_state() {
     local component="$1"
     local check_command="$2"
     
+    # Validate component name for security
+    validate_component_name "$component" || return 1
+    
+    # Security note: check_command should only be called with trusted input from install.sh
+    # This eval is necessary for command flexibility but requires controlled input
     if eval "$check_command" &>/dev/null; then
         set_state "$component" "installed"
         return 0  # Already installed
@@ -92,6 +140,13 @@ install_and_update_state() {
     local component="$1"
     local install_command="$2"
     local check_command="$3"
+    
+    # Validate component name for security
+    validate_component_name "$component" || return 1
+    
+    # Security note: install_command and check_command should only be called with 
+    # trusted input from install.sh. These eval calls are necessary for command 
+    # flexibility but require controlled input to prevent injection attacks.
     
     # Try to install
     if eval "$install_command"; then
