@@ -121,6 +121,61 @@ RED='\033[0;31m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
+# Track whether apt update has been run to prevent conflicts
+APT_UPDATE_DONE=false
+
+# Centralized apt update function to prevent concurrent calls
+ensure_apt_updated() {
+    if [ "$APT_UPDATE_DONE" = false ]; then
+        log_action "System" "Updating package lists" "installing"
+        
+        # Retry apt update up to 2 times for network issues
+        local retry_count=0
+        local max_retries=2
+        
+        while [ $retry_count -le $max_retries ]; do
+            if sudo apt update; then
+                APT_UPDATE_DONE=true
+                log_action "System" "Package lists updated" "success"
+                return 0
+            else
+                retry_count=$((retry_count + 1))
+                if [ $retry_count -le $max_retries ]; then
+                    log_action "System" "Retrying apt update ($retry_count/$max_retries)" "installing"
+                    sleep 2
+                fi
+            fi
+        done
+        
+        log_action "System" "Package list update failed after $max_retries attempts" "failed"
+        echo -e "${YELLOW}Warning: apt update failed. Individual package installs may fail.${NC}"
+        APT_UPDATE_DONE=true  # Set to true to avoid repeated attempts
+    fi
+}
+
+# Helper function for retrying network operations
+retry_network_operation() {
+    local description="$1"
+    local command="$2"
+    local max_retries=3
+    local retry_count=0
+    
+    while [ $retry_count -le $max_retries ]; do
+        if eval "$command"; then
+            return 0
+        else
+            retry_count=$((retry_count + 1))
+            if [ $retry_count -le $max_retries ]; then
+                echo -e "${YELLOW}$description failed, retrying ($retry_count/$max_retries)...${NC}"
+                sleep 3
+            fi
+        fi
+    done
+    
+    echo -e "${RED}$description failed after $max_retries attempts${NC}"
+    return 1
+}
+
 # Helper function for consistent output
 log_action() {
     local component="$1"
@@ -171,7 +226,8 @@ install_git() {
             log_action "Git" "Already available" "already"
         else
             log_action "Git" "Installing via apt" "installing"
-            if install_and_update_state "git_install" "sudo apt update && sudo apt install -y git" "command -v git"; then
+            ensure_apt_updated
+            if install_and_update_state "git_install" "sudo apt install -y git" "command -v git"; then
                 log_action "Git" "Installation completed" "success"
             else
                 log_action "Git" "Installation failed" "failed"
@@ -191,7 +247,8 @@ install_yq_jq() {
             log_action "yq" "Already available" "already"
         else
             log_action "yq" "Installing via apt" "installing"
-            if install_and_update_state "yq_install" "sudo apt update && sudo apt install -y yq" "command -v yq"; then
+            ensure_apt_updated
+            if install_and_update_state "yq_install" "sudo apt install -y yq" "command -v yq"; then
                 log_action "yq" "Installation completed" "success"
             else
                 log_action "yq" "Installation failed" "failed"
@@ -211,7 +268,8 @@ install_yq_jq() {
             log_action "jq" "Already available" "already"
         else
             log_action "jq" "Installing via apt" "installing"
-            if install_and_update_state "jq_install" "sudo apt update && sudo apt install -y jq" "command -v jq"; then
+            ensure_apt_updated
+            if install_and_update_state "jq_install" "sudo apt install -y jq" "command -v jq"; then
                 log_action "jq" "Installation completed" "success"
             else
                 log_action "jq" "Installation failed" "failed"
@@ -235,7 +293,8 @@ install_dependencies() {
             log_action "Ripgrep" "Already available" "already"
         else
             log_action "Ripgrep" "Installing via apt" "installing"
-            if install_and_update_state "ripgrep_install" "sudo apt update && sudo apt install -y ripgrep" "command -v rg"; then
+            ensure_apt_updated
+            if install_and_update_state "ripgrep_install" "sudo apt install -y ripgrep" "command -v rg"; then
                 log_action "Ripgrep" "Installation completed" "success"
             else
                 log_action "Ripgrep" "Installation failed" "failed"
@@ -245,16 +304,51 @@ install_dependencies() {
         log_action "Ripgrep" "Installation" "skip"
     fi
     
+# Helper function to install fd with proper symlink handling
+install_fd_binary() {
+    # Ensure apt is updated first
+    ensure_apt_updated
+    
+    # Install fd-find package
+    if ! sudo apt install -y fd-find; then
+        echo -e "${RED}Failed to install fd-find package${NC}"
+        return 1
+    fi
+    
+    # Check if fdfind binary exists
+    local fdfind_path=$(which fdfind 2>/dev/null)
+    if [[ -z "$fdfind_path" ]]; then
+        echo -e "${RED}fdfind binary not found after installation${NC}"
+        return 1
+    fi
+    
+    # Create symlink for fd command
+    log_action "fd" "Creating symlink for fd command" "installing"
+    if ! sudo ln -sf "$fdfind_path" /usr/local/bin/fd; then
+        echo -e "${YELLOW}Warning: Failed to create fd symlink, but fdfind is available${NC}"
+        # Don't fail completely as fdfind still works
+    fi
+    
+    # Verify fd command works (either as fd or fdfind)
+    if command -v fd &>/dev/null || command -v fdfind &>/dev/null; then
+        return 0
+    else
+        echo -e "${RED}Neither fd nor fdfind command is available${NC}"
+        return 1
+    fi
+}
+    
     # fd
     if needs_action "fd_install"; then
-        if check_and_update_state "fd_install" "command -v fd"; then
+        if check_and_update_state "fd_install" "command -v fd || command -v fdfind"; then
             log_action "fd" "Already available" "already"
         else
             log_action "fd" "Installing via apt" "installing"
-            install_cmd="sudo apt update && sudo apt install -y fd-find && sudo ln -sf $(which fdfind) /usr/local/bin/fd 2>/dev/null || true"
-            if install_and_update_state "fd_install" "$install_cmd" "command -v fd"; then
+            if install_fd_binary; then
+                set_state "fd_install" "installed"
                 log_action "fd" "Installation completed" "success"
             else
+                set_state "fd_install" "notinstalled"
                 log_action "fd" "Installation failed" "failed"
             fi
         fi
@@ -317,7 +411,8 @@ install_python() {
             log_action "Python3" "Already available" "already"
         else
             log_action "Python3" "Installing via apt" "installing"
-            if install_and_update_state "python_install" "sudo apt update && sudo apt install -y python3 python3-pip" "command -v python3"; then
+            ensure_apt_updated
+            if install_and_update_state "python_install" "sudo apt install -y python3 python3-pip" "command -v python3"; then
                 log_action "Python3" "Installation completed" "success"
             else
                 log_action "Python3" "Installation failed" "failed"
@@ -450,6 +545,76 @@ install_plugins() {
     fi
 }
 
+# Helper function to install LazyGit from GitHub releases
+install_lazygit_binary() {
+    local temp_dir=$(mktemp -d)
+    local cleanup() { rm -rf "$temp_dir"; }
+    trap cleanup EXIT
+    
+    # Get latest version from GitHub API
+    log_action "LazyGit" "Fetching latest version info" "installing"
+    local version
+    version=$(curl -s --connect-timeout 10 "https://api.github.com/repos/jesseduffield/lazygit/releases/latest" | grep -Po '"tag_name": "v\K[^"]*')
+    
+    if [[ -z "$version" ]]; then
+        echo -e "${RED}Failed to get LazyGit version information${NC}"
+        return 1
+    fi
+    
+    log_action "LazyGit" "Downloading version $version" "installing"
+    local download_url="https://github.com/jesseduffield/lazygit/releases/latest/download/lazygit_${version}_Linux_x86_64.tar.gz"
+    
+    # Download with timeout and error checking
+    if ! curl -L --connect-timeout 30 --max-time 120 -o "$temp_dir/lazygit.tar.gz" "$download_url"; then
+        echo -e "${RED}Failed to download LazyGit${NC}"
+        return 1
+    fi
+    
+    # Basic file verification - ensure it's a valid gzip file
+    log_action "LazyGit" "Verifying download integrity" "installing"
+    if ! file "$temp_dir/lazygit.tar.gz" | grep -q "gzip compressed"; then
+        echo -e "${RED}Downloaded file is not a valid gzip archive${NC}"
+        return 1
+    fi
+    
+    # Check file size is reasonable (should be > 1MB and < 50MB)
+    local file_size=$(stat -f%z "$temp_dir/lazygit.tar.gz" 2>/dev/null || stat -c%s "$temp_dir/lazygit.tar.gz" 2>/dev/null)
+    if [[ -n "$file_size" ]]; then
+        if [[ "$file_size" -lt 1000000 ]] || [[ "$file_size" -gt 50000000 ]]; then
+            echo -e "${YELLOW}Warning: LazyGit download size ($file_size bytes) seems unusual${NC}"
+            echo -e "${YELLOW}Continuing anyway, but please verify the installation${NC}"
+        fi
+    fi
+    
+    # Extract and verify
+    log_action "LazyGit" "Extracting and installing binary" "installing"
+    cd "$temp_dir" || return 1
+    
+    if ! tar xf lazygit.tar.gz; then
+        echo -e "${RED}Failed to extract LazyGit archive${NC}"
+        return 1
+    fi
+    
+    if [[ ! -f "lazygit" ]] || [[ ! -x "lazygit" ]]; then
+        echo -e "${RED}LazyGit binary not found or not executable${NC}"
+        return 1
+    fi
+    
+    # Install to system
+    if ! sudo install lazygit /usr/local/bin/; then
+        echo -e "${RED}Failed to install LazyGit to /usr/local/bin${NC}"
+        return 1
+    fi
+    
+    # Verify installation
+    if ! command -v lazygit &>/dev/null; then
+        echo -e "${RED}LazyGit installation verification failed${NC}"
+        return 1
+    fi
+    
+    return 0
+}
+
 # Install lazygit for Git workflow
 install_lazygit() {
     if needs_action "lazygit_install"; then
@@ -457,10 +622,11 @@ install_lazygit() {
             log_action "LazyGit" "Already available" "already"
         else
             log_action "LazyGit" "Installing via GitHub releases" "installing"
-            install_cmd="LAZYGIT_VERSION=\$(curl -s \"https://api.github.com/repos/jesseduffield/lazygit/releases/latest\" | grep -Po '\"tag_name\": \"v\\K[^\"]*') && curl -Lo lazygit.tar.gz \"https://github.com/jesseduffield/lazygit/releases/latest/download/lazygit_\${LAZYGIT_VERSION}_Linux_x86_64.tar.gz\" && tar xf lazygit.tar.gz lazygit && sudo install lazygit /usr/local/bin && rm lazygit.tar.gz lazygit"
-            if install_and_update_state "lazygit_install" "$install_cmd" "command -v lazygit"; then
+            if install_lazygit_binary; then
+                set_state "lazygit_install" "installed"
                 log_action "LazyGit" "Installation completed" "success"
             else
+                set_state "lazygit_install" "notinstalled"
                 log_action "LazyGit" "Installation failed" "failed"
                 echo -e "${YELLOW}Note: LazyGit installation failed. You can install manually:${NC}"
                 echo "  https://github.com/jesseduffield/lazygit#installation"
@@ -482,7 +648,8 @@ install_tmux() {
         # Check if tmux is installed
         if ! command -v tmux &> /dev/null; then
             log_action "Tmux" "Installing tmux binary" "installing"
-            sudo apt update && sudo apt install -y tmux
+            ensure_apt_updated
+            sudo apt install -y tmux
         fi
         
         # Check if our config is already installed
