@@ -62,7 +62,64 @@ return {
             return term.name
           end,
         },
+        on_create = function(t)
+          -- Enable URL clicking in terminal
+          vim.api.nvim_buf_set_option(t.bufnr, 'mouse', 'a')
+          
+          -- Set up URL pattern matching and click handler
+          vim.api.nvim_create_autocmd("BufEnter", {
+            buffer = t.bufnr,
+            callback = function()
+              vim.api.nvim_buf_set_keymap(t.bufnr, 'n', '<LeftMouse>', '<LeftMouse><cmd>lua OpenUrlUnderCursor()<cr>', 
+                { noremap = true, silent = true })
+              vim.api.nvim_buf_set_keymap(t.bufnr, 'n', 'gx', '<cmd>lua OpenUrlUnderCursor()<cr>', 
+                { noremap = true, silent = true, desc = "Open URL under cursor" })
+            end,
+          })
+        end,
       })
+      
+      -- Global function to open URLs under cursor
+      function OpenUrlUnderCursor()
+        local line = vim.api.nvim_get_current_line()
+        local col = vim.api.nvim_win_get_cursor(0)[2]
+        
+        -- URL pattern matching (http/https)
+        local url_pattern = "https?://[%w-_%.%?%.:/%+=&%%~#]*[%w-_/%%~#]"
+        local start_pos = 1
+        
+        while true do
+          local url_start, url_end = string.find(line, url_pattern, start_pos)
+          if not url_start then break end
+          
+          -- Check if cursor is within this URL
+          if col >= url_start - 1 and col <= url_end - 1 then
+            local url = string.sub(line, url_start, url_end)
+            
+            -- Detect OS and open URL accordingly
+            local open_cmd
+            if vim.fn.has("mac") == 1 then
+              open_cmd = "open"
+            elseif vim.fn.has("unix") == 1 then
+              open_cmd = "xdg-open"
+            elseif vim.fn.has("win32") == 1 then
+              open_cmd = "start"
+            else
+              vim.notify("Unsupported OS for URL opening", vim.log.levels.ERROR)
+              return
+            end
+            
+            -- Execute the command to open URL
+            vim.fn.jobstart({ open_cmd, url }, { detach = true })
+            vim.notify("Opening URL: " .. url, vim.log.levels.INFO)
+            return
+          end
+          
+          start_pos = url_end + 1
+        end
+        
+        vim.notify("No URL found under cursor", vim.log.levels.WARN)
+      end
       
       -- Custom terminals
       local Terminal = require("toggleterm.terminal").Terminal
