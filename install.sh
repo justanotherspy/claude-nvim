@@ -1072,7 +1072,7 @@ install_config() {
     else
         # Always copy configs even if marked as installed to prevent drift
         log_action "Config Install" "Updating configs to prevent drift" "installing"
-        if cp -r ./* "$HOME/.config/nvim/" 2>/dev/null; then
+        if mkdir -p "$HOME/.config/nvim" && cp -r ./* "$HOME/.config/nvim/" 2>/dev/null; then
             log_action "Config Install" "Configuration updated successfully" "success"
         else
             log_action "Config Install" "Configuration update failed" "failed"
