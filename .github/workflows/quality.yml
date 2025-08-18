@@ -47,7 +47,7 @@ jobs:
     - name: Run luacheck
       run: |
         luacheck --version
-        luacheck . --globals vim --read-globals-from-config --codes --ranges
+        luacheck . --codes --ranges
       env:
         LUA_PATH: "/home/runner/.luarocks/share/lua/5.4/?.lua;/home/runner/.luarocks/share/lua/5.4/?/init.lua;;"
         LUA_CPATH: "/home/runner/.luarocks/lib/lua/5.4/?.so;;"
