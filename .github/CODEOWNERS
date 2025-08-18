@@ -1,0 +1,13 @@
+# CODEOWNERS file for Neovim Configuration
+# This file defines who owns what in this repository
+# See: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Global ownership - Daniel owns everything by default
+* @justanotherspy
+
+# Specific file ownership
+/.github/ @justanotherspy
+/lua/ @justanotherspy  
+*.lua @justanotherspy
+*.sh @justanotherspy
+*.md @justanotherspy

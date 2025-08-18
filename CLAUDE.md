@@ -65,17 +65,90 @@ nvim -c "checkhealth"
 
 ## Key Requirements from README
 
-1. **Visual Setup**: Implement Monokai theme with JetBrains Mono font
+1. **Visual Setup**: Implement Monokai Pro theme with JetBrains Mono font
 2. **Documentation**: Create comprehensive usage guide covering:
-   - Leader key configuration
-   - File browsing commands
-   - Terminal usage
+   - Leader key configuration (Space as leader)
+   - File browsing commands (Neo-tree, Telescope)
+   - Terminal usage (ToggleTerm integration)
    - Buffer management
    - File creation and navigation
 3. **Workflow Integration**: 
    - Tmux integration for Claude CLI workflow
-   - Git commands from within Neovim
+   - Git commands from within Neovim (LazyGit, Gitsigns, Fugitive)
    - LSP configuration for responsive development
+
+## Installation Features
+
+The install script (`install.sh`) provides flexible installation with these key flags:
+- `--skip-fonts` - Skip JetBrains Mono font installation
+- `--skip-deps` - Skip dependency installations (ripgrep, fd, fzf)
+- `--skip-node/python/rust` - Skip language-specific installations
+- `--with-tmux` - Install optimized tmux configuration
+- `--skip-backup` - Skip backing up existing configuration
+
+## Essential Keybindings (Space as Leader)
+
+### File Operations
+- `<leader>ff` - Find files with Telescope
+- `<leader>fg` - Live grep across project
+- `<leader>e` - Toggle Neo-tree file explorer
+
+### Development
+- `gd` - Go to definition
+- `K` - Show hover documentation
+- `<leader>ca` - Code actions
+- `<leader>rn` - Rename symbol
+- `<leader>f` - Format current file
+
+### Terminal & Git
+- `<leader>tt` - Toggle floating terminal
+- `<leader>lg` - Open LazyGit interface
+- `<leader>hs` - Stage git hunk
+
+### Navigation
+- `Shift+h/l` - Previous/next buffer
+- `<leader>bd` - Delete buffer
+- `Ctrl+h/j/k/l` - Window navigation
+
+## Tmux Integration Workflow
+
+Optimized for Claude CLI development:
+1. **Session**: `tmux new -s dev`
+2. **Split panes**: `Ctrl+a |` (horizontal), `Ctrl+a -` (vertical)
+3. **Navigate**: `Ctrl+a h/j/k/l` or `Alt+Arrow Keys`
+4. **Resize**: `Ctrl+a H/J/K/L`
+5. **Quick window switching**: `Ctrl+Shift+Left/Right`
+
+## LSP Configuration
+
+Supports these languages with full LSP integration:
+- **Go**: `gopls` with formatting, linting, debugging
+- **Rust**: `rust_analyzer` with Cargo integration, Clippy
+- **TypeScript**: `ts_ls` with InlayHints, auto-imports
+- **Python**: `pyright` with type checking, uv support
+- **Lua**: `lua_ls` with Neovim API integration
+
+## Architecture Overview
+
+```
+nvim/
+├── init.lua                    # Main configuration entry
+├── lua/
+│   ├── config/                 # Core settings
+│   │   ├── options.lua        # Editor options
+│   │   ├── keymaps.lua        # Key bindings
+│   │   └── autocmds.lua       # Auto commands
+│   └── plugins/               # Plugin configurations
+│       ├── colorscheme.lua    # Monokai Pro theme
+│       ├── lsp.lua           # Language servers
+│       ├── telescope.lua     # Fuzzy finder
+│       ├── neo-tree.lua      # File explorer
+│       ├── git.lua           # Git integration
+│       ├── terminal.lua      # Terminal management
+│       ├── fzf-lua.lua       # Alternative finder
+│       └── ui.lua            # UI enhancements
+└── tmux.conf                  # Tmux configuration
+```
 
 ## Architecture Decisions
 
