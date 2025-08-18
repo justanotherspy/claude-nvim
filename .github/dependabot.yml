@@ -17,35 +17,3 @@ updates:
       include: "scope"
     pull-request-branch-name:
       separator: "-"
-    
-  # Enable version updates for npm packages (if any)
-  - package-ecosystem: "npm"
-    directory: "/"
-    schedule:
-      interval: "weekly"
-      day: "monday"
-      time: "06:00"
-    labels:
-      - "dependencies"
-      - "npm"
-    commit-message:
-      prefix: "chore"
-      include: "scope"
-    ignore:
-      # Ignore major version updates for stable dependencies
-      - dependency-name: "*"
-        update-types: ["version-update:semver-major"]
-    
-  # Enable version updates for Docker (if Dockerfile exists)
-  - package-ecosystem: "docker"
-    directory: "/"
-    schedule:
-      interval: "weekly"
-      day: "monday"
-      time: "06:00"
-    labels:
-      - "dependencies"
-      - "docker"
-    commit-message:
-      prefix: "chore"
-      include: "scope"
