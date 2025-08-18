@@ -113,7 +113,7 @@ return {
       end
 
       -- LSP keymaps
-      local on_attach = function(client, bufnr)
+      local on_attach = function(client, bufnr) -- luacheck: ignore client
         local opts = { buffer = bufnr, remap = false }
 
         vim.keymap.set("n", "gd", vim.lsp.buf.definition, opts)

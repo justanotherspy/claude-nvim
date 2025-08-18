@@ -12,6 +12,7 @@ globals = {
     "_NODE_TOGGLE",
     "_PYTHON_TOGGLE", 
     "_BTOP_TOGGLE",
+    "OpenUrlUnderCursor", -- URL handler function
 }
 
 -- Files and directories to ignore

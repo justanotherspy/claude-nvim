@@ -90,7 +90,8 @@ keymap("n", "<leader>ln", ":lnext<CR>", opts)
 keymap("n", "<leader>lp", ":lprev<CR>", opts)
 
 -- Replace word under cursor
-keymap("n", "<leader>rp", [[:%s/\<<C-r><C-w>\>/<C-r><C-w>/gI<Left><Left><Left>]], { desc = "Replace word under cursor" })
+keymap("n", "<leader>rp", [[:%s/\<<C-r><C-w>\>/<C-r><C-w>/gI<Left><Left><Left>]], 
+  { desc = "Replace word under cursor" })
 
 -- Enhanced search with ripgrep
 keymap("n", "<leader>rg", ":silent grep! ", { desc = "Ripgrep search" })
