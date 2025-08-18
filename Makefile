@@ -144,8 +144,8 @@ validate-yaml:
 	@echo "$(BLUE)📋 Validating YAML files...$(NC)"
 	@if command -v yq >/dev/null 2>&1; then \
 		echo "$(BLUE)Checking GitHub workflow files...$(NC)"; \
-		for file in .github/workflows/*.yml .github/workflows/*.yaml 2>/dev/null; do \
-			if [ -f "$$file" ]; then \
+		for file in .github/workflows/*.yml .github/workflows/*.yaml; do \
+			if [ -f "$$file" ] && [ "$$file" != ".github/workflows/*.yml" ] && [ "$$file" != ".github/workflows/*.yaml" ]; then \
 				echo -n "$(BLUE)Validating $$(basename $$file)... $(NC)"; \
 				if yq eval '.' "$$file" > /dev/null 2>&1; then \
 					echo "$(GREEN)✅$(NC)"; \
@@ -158,8 +158,8 @@ validate-yaml:
 			fi; \
 		done; \
 		echo "$(BLUE)Checking other YAML files...$(NC)"; \
-		for file in .github/*.yml .github/*.yaml *.yml *.yaml 2>/dev/null; do \
-			if [ -f "$$file" ] && [ "$$(basename $$file)" != "state.yaml" ]; then \
+		for file in .github/*.yml .github/*.yaml *.yml *.yaml; do \
+			if [ -f "$$file" ] && [ "$$(basename $$file)" != "state.yaml" ] && [ "$$file" != ".github/*.yml" ] && [ "$$file" != ".github/*.yaml" ] && [ "$$file" != "*.yml" ] && [ "$$file" != "*.yaml" ]; then \
 				echo -n "$(BLUE)Validating $$(basename $$file)... $(NC)"; \
 				if yq eval '.' "$$file" > /dev/null 2>&1; then \
 					echo "$(GREEN)✅$(NC)"; \
@@ -183,7 +183,7 @@ validate-yaml:
 validate-workflows: validate-yaml
 	@echo "$(BLUE)🔄 Validating GitHub Actions workflows...$(NC)"
 	@if command -v yq >/dev/null 2>&1; then \
-		for file in .github/workflows/*.yml .github/workflows/*.yaml 2>/dev/null; do \
+		for file in .github/workflows/*.yml .github/workflows/*.yaml; do \
 			if [ -f "$$file" ]; then \
 				echo "$(BLUE)Checking workflow: $$(basename $$file)$(NC)"; \
 				echo -n "  Structure validation... "; \
