@@ -234,6 +234,7 @@ nvim -c ':Mason'
 ## 📖 **Documentation**
 
 - **[USAGE_GUIDE.md](./USAGE_GUIDE.md)** - Comprehensive usage guide
+- **[TMUX_GUIDE.md](./TMUX_GUIDE.md)** - Complete tmux configuration and controls guide
 - **[CLAUDE.md](./CLAUDE.md)** - Claude Code integration details
 - **[install.sh](./install.sh)** - Automated installation script
 
@@ -256,7 +257,9 @@ nvim/
 │       ├── terminal.lua      # Terminal management
 │       ├── fzf-lua.lua       # Alternative fuzzy finder
 │       └── ui.lua            # UI enhancements
+├── tmux.conf                  # Enhanced tmux configuration
 ├── USAGE_GUIDE.md             # Detailed usage instructions
+├── TMUX_GUIDE.md              # Complete tmux controls guide
 └── install.sh                # Installation script
 ```
 
