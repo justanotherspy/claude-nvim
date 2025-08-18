@@ -14,7 +14,6 @@ SKIP_FONTS=false
 SKIP_DEPS=false
 SKIP_NODE=false
 SKIP_PYTHON=false
-SKIP_RUST=false
 SKIP_BACKUP=false
 SKIP_PLUGINS=false
 INSTALL_TMUX_CONFIG=false
@@ -38,10 +37,6 @@ while [[ $# -gt 0 ]]; do
             ;;
         --skip-python)
             SKIP_PYTHON=true
-            shift
-            ;;
-        --skip-rust)
-            SKIP_RUST=true
             shift
             ;;
         --skip-backup)
@@ -74,7 +69,6 @@ while [[ $# -gt 0 ]]; do
             echo "  --skip-deps       Skip all dependency installations (ripgrep, fd, fzf)"
             echo "  --skip-node       Skip Node.js installation"
             echo "  --skip-python     Skip Python3 installation"
-            echo "  --skip-rust       Skip Rust/Cargo check"
             echo "  --skip-backup     Skip backing up existing configuration"
             echo "  --skip-plugins    Skip automatic plugin installation"
             echo "  --with-tmux       Install optimal tmux configuration"
@@ -316,7 +310,8 @@ install_fd_binary() {
     fi
     
     # Check if fdfind binary exists
-    local fdfind_path=$(which fdfind 2>/dev/null)
+    local fdfind_path
+    fdfind_path=$(which fdfind 2>/dev/null)
     if [[ -z "$fdfind_path" ]]; then
         echo -e "${RED}fdfind binary not found after installation${NC}"
         return 1
@@ -465,7 +460,7 @@ backup_config() {
             backup_name="$HOME/.config/nvim.backup.$(date +%Y%m%d_%H%M%S)"
             if mv "$HOME/.config/nvim" "$backup_name"; then
                 set_state "config_backup" "installed"
-                log_action "Config Backup" "Backup created: $(basename $backup_name)" "success"
+                log_action "Config Backup" "Backup created: $(basename "$backup_name")" "success"
             else
                 set_state "config_backup" "notinstalled"
                 log_action "Config Backup" "Backup failed" "failed"
@@ -547,8 +542,9 @@ install_plugins() {
 
 # Helper function to install LazyGit from GitHub releases
 install_lazygit_binary() {
-    local temp_dir=$(mktemp -d)
-    local cleanup() { rm -rf "$temp_dir"; }
+    local temp_dir
+    temp_dir=$(mktemp -d)
+    cleanup() { rm -rf "$temp_dir"; }
     trap cleanup EXIT
     
     # Get latest version from GitHub API
@@ -578,7 +574,8 @@ install_lazygit_binary() {
     fi
     
     # Check file size is reasonable (should be > 1MB and < 50MB)
-    local file_size=$(stat -f%z "$temp_dir/lazygit.tar.gz" 2>/dev/null || stat -c%s "$temp_dir/lazygit.tar.gz" 2>/dev/null)
+    local file_size
+    file_size=$(stat -f%z "$temp_dir/lazygit.tar.gz" 2>/dev/null || stat -c%s "$temp_dir/lazygit.tar.gz" 2>/dev/null)
     if [[ -n "$file_size" ]]; then
         if [[ "$file_size" -lt 1000000 ]] || [[ "$file_size" -gt 50000000 ]]; then
             echo -e "${YELLOW}Warning: LazyGit download size ($file_size bytes) seems unusual${NC}"

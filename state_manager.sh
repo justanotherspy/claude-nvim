@@ -106,7 +106,8 @@ needs_action() {
     # Validate component name for security
     validate_component_name "$component" || return 1
     
-    local current_state=$(get_state "$component")
+    local current_state
+    current_state=$(get_state "$component")
     
     case "$current_state" in
         notcheckedyet|notinstalled)
