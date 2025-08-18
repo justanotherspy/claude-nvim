@@ -29,8 +29,9 @@ source_install_functions() {
     # Create a temporary modified script that doesn't execute main()
     local temp_script
     temp_script=$(mktemp)
-    # Remove the main execution part but keep all functions
-    sed '/^# Run main installation$/,$d' "$INSTALL_SCRIPT" > "$temp_script"
+    # Remove the main execution part but keep all functions, and fix the state_manager.sh path
+    sed '/^# Run main installation$/,$d' "$INSTALL_SCRIPT" | \
+    sed "s|source \"\$SCRIPT_DIR/state_manager.sh\"|source \"$SCRIPT_DIR/../state_manager.sh\"|" > "$temp_script"
     source "$temp_script"
     rm "$temp_script"
 }

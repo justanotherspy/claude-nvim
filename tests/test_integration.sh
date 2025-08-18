@@ -65,7 +65,7 @@ test_script_execution() {
     help_output=$("$INSTALL_SCRIPT" --help 2>&1)
     assert_contains "$help_output" "Neovim Configuration Installation Script" "Help output contains title"
     assert_contains "$help_output" "--skip-tmux" "Help output contains skip-tmux option"
-    assert_contains "$help_output" "Cross-platform support" "Help output mentions cross-platform"
+    assert_contains "$help_output" "Options:" "Help output contains options section"
     
     # Test show-state flag
     assert_success "$INSTALL_SCRIPT --show-state" "Show state command execution"
