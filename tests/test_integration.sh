@@ -61,7 +61,8 @@ test_script_execution() {
     echo -e "\n${BLUE}Testing Script Execution${NC}"
     
     # Test help flag
-    local help_output=$("$INSTALL_SCRIPT" --help 2>&1)
+    local help_output
+    help_output=$("$INSTALL_SCRIPT" --help 2>&1)
     assert_contains "$help_output" "Neovim Configuration Installation Script" "Help output contains title"
     assert_contains "$help_output" "--skip-tmux" "Help output contains skip-tmux option"
     assert_contains "$help_output" "Cross-platform support" "Help output mentions cross-platform"
@@ -78,11 +79,13 @@ test_os_detection_integration() {
     echo -e "\n${BLUE}Testing OS Detection Integration${NC}"
     
     # Test that script detects current OS
-    local os_output=$("$INSTALL_SCRIPT" --help 2>&1 | head -1)
+    local os_output
+    os_output=$("$INSTALL_SCRIPT" --help 2>&1 | head -1)
     assert_contains "$os_output" "Detected OS:" "OS detection in script output"
     
     # Verify current OS is detected correctly
-    local current_os=$(uname -s)
+    local current_os
+    current_os=$(uname -s)
     case "$current_os" in
         Linux*)
             assert_contains "$os_output" "linux" "Linux OS detection"
@@ -98,7 +101,8 @@ test_argument_parsing() {
     echo -e "\n${BLUE}Testing Argument Parsing${NC}"
     
     # Test invalid argument
-    local invalid_output=$("$INSTALL_SCRIPT" --invalid-flag 2>&1 || true)
+    local invalid_output
+    invalid_output=$("$INSTALL_SCRIPT" --invalid-flag 2>&1 || true)
     assert_contains "$invalid_output" "Unknown option" "Invalid argument handling"
     
     # Test valid arguments don't cause syntax errors
@@ -112,7 +116,8 @@ test_state_management() {
     echo -e "\n${BLUE}Testing State Management${NC}"
     
     # Test state display
-    local state_output=$("$INSTALL_SCRIPT" --show-state 2>&1)
+    local state_output
+    state_output=$("$INSTALL_SCRIPT" --show-state 2>&1)
     assert_contains "$state_output" "Current installation state" "State display header"
     assert_contains "$state_output" "tmux_install:" "Tmux component in state"
     assert_contains "$state_output" "yq_install:" "yq component in state"
@@ -173,7 +178,8 @@ test_homebrew_detection() {
         fi
         
         # Test architecture-specific paths
-        local arch=$(uname -m)
+        local arch
+        arch=$(uname -m)
         if [[ "$arch" == "arm64" ]]; then
             if [[ -f "/opt/homebrew/bin/brew" ]]; then
                 echo -e "${GREEN}✓ CORRECT${NC}: ARM64 Homebrew path detected"

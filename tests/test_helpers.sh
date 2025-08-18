@@ -27,7 +27,8 @@ source_install_functions() {
     source "$SCRIPT_DIR/../state_manager.sh"
     
     # Create a temporary modified script that doesn't execute main()
-    local temp_script=$(mktemp)
+    local temp_script
+    temp_script=$(mktemp)
     # Remove the main execution part but keep all functions
     sed '/^# Run main installation$/,$d' "$INSTALL_SCRIPT" > "$temp_script"
     source "$temp_script"
@@ -100,7 +101,8 @@ test_os_detection() {
     
     # Test Linux detection
     MOCK_OS="Linux"
-    local result=$(detect_os)
+    local result
+    result=$(detect_os)
     assert_equals "linux" "$result" "Linux OS detection"
     
     # Test macOS detection
@@ -132,7 +134,8 @@ test_arch_detection() {
     
     # Test ARM64 detection
     MOCK_ARCH="arm64"
-    local arch=$(uname -m)
+    local arch
+    arch=$(uname -m)
     assert_equals "arm64" "$arch" "ARM64 architecture detection"
     
     # Test x86_64 detection
@@ -162,7 +165,8 @@ test_lazygit_url_generation() {
     
     local expected_arm="https://github.com/jesseduffield/lazygit/releases/latest/download/lazygit_${version}_Darwin_arm64.tar.gz"
     # We can't easily test the URL generation without refactoring, so we test the logic
-    local mac_arch=$(uname -m)
+    local mac_arch
+    mac_arch=$(uname -m)
     if [[ "$mac_arch" == "arm64" ]]; then
         local url_suffix="Darwin_arm64.tar.gz"
     else
@@ -210,17 +214,20 @@ test_checksum_validation() {
     echo -e "\n${BLUE}Testing Checksum Validation${NC}"
     
     # Create a test file with known content
-    local test_file=$(mktemp)
+    local test_file
+    test_file=$(mktemp)
     echo "test content" > "$test_file"
     
     # Calculate actual checksum
-    local actual_checksum=$(shasum -a 256 "$test_file" | cut -d' ' -f1)
+    local actual_checksum
+    actual_checksum=$(shasum -a 256 "$test_file" | cut -d' ' -f1)
     
     # Test valid checksum
     validate_checksum() {
         local file="$1"
         local expected="$2"
-        local actual=$(shasum -a 256 "$file" | cut -d' ' -f1)
+        local actual
+        actual=$(shasum -a 256 "$file" | cut -d' ' -f1)
         [[ "$actual" == "$expected" ]]
     }
     
@@ -302,13 +309,16 @@ test_log_formatting() {
         esac
     }
     
-    local success_output=$(log_action "Test" "Test action" "success")
+    local success_output
+    success_output=$(log_action "Test" "Test action" "success")
     assert_true "[[ '$success_output' == *'✅'* ]]" "Success log formatting"
     
-    local failed_output=$(log_action "Test" "Test action" "failed")
+    local failed_output
+    failed_output=$(log_action "Test" "Test action" "failed")
     assert_true "[[ '$failed_output' == *'❌'* ]]" "Failed log formatting"
     
-    local skip_output=$(log_action "Test" "Test action" "skip")
+    local skip_output
+    skip_output=$(log_action "Test" "Test action" "skip")
     assert_true "[[ '$skip_output' == *'⏸️'* ]]" "Skip log formatting"
 }
 

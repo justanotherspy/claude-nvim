@@ -203,7 +203,8 @@ ensure_homebrew_installed() {
         return 0
     fi
     
-    local arch=$(uname -m)
+    local arch
+    arch=$(uname -m)
     local expected_brew_path
     local homebrew_prefix
     
@@ -220,7 +221,8 @@ ensure_homebrew_installed() {
     
     # Check if Homebrew is already installed and accessible
     if command -v brew &>/dev/null; then
-        local current_brew_path=$(which brew)
+        local current_brew_path
+        current_brew_path=$(which brew)
         log_action "Homebrew" "Found at $current_brew_path" "already"
         
         # Verify it's in the expected location for the architecture
