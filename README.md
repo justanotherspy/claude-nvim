@@ -62,7 +62,7 @@ A feature-rich, performance-optimized Neovim setup tailored for modern developme
 
 ### **Cross-Platform Support**
 ✅ **Linux** (Ubuntu, Debian, and derivatives with `apt`)  
-✅ **macOS** (with Homebrew)
+✅ **macOS** (with Homebrew) - Intel and Apple Silicon (M1/M2/M3) support
 
 The installation script automatically detects your operating system and uses the appropriate package manager:
 - **Linux**: Uses `apt` for system packages
@@ -96,8 +96,8 @@ The install script is **idempotent** and **cross-platform** - it can be run mult
 # Skip font installation
 ./install.sh --skip-fonts
 
-# Install with tmux configuration
-./install.sh --with-tmux
+# Full installation (includes tmux configuration)
+./install.sh
 
 # Reset state for fresh installation
 ./install.sh --reset-state
@@ -106,7 +106,10 @@ The install script is **idempotent** and **cross-platform** - it can be run mult
 ./install.sh --skip-fonts --skip-deps
 
 # Skip specific components
-./install.sh --skip-node --skip-python --skip-rust
+./install.sh --skip-node --skip-python
+
+# Install without tmux configuration
+./install.sh --skip-tmux
 ```
 
 **Available Flags:**
@@ -114,13 +117,14 @@ The install script is **idempotent** and **cross-platform** - it can be run mult
 - `--skip-deps` - Skip all dependency installations (ripgrep, fd, fzf)
 - `--skip-node` - Skip Node.js installation
 - `--skip-python` - Skip Python3 installation
-- `--skip-rust` - Skip Rust/Cargo check
 - `--skip-backup` - Skip backing up existing configuration
 - `--skip-plugins` - Skip automatic plugin installation
-- `--with-tmux` - Install optimal tmux configuration
+- `--skip-tmux` - Skip tmux installation and configuration
 - `--show-state` - Show current installation state and exit
 - `--reset-state` - Reset all installation states (for testing)
 - `-h, --help` - Show help message with all options
+
+**Note**: Tmux configuration is now installed by default as a core component of the development workflow, but can be skipped with `--skip-tmux`.
 
 #### **State Management**
 The installer tracks component installation status in `~/.config/claude-nvim/state.yaml`:
@@ -165,8 +169,9 @@ tmux_install: notinstalled
 **macOS (Homebrew):**
 - All packages via `brew` (ripgrep, fd, jq, yq, node, etc.) 
 - Fonts via `brew install --cask font-jetbrains-mono`
-- LazyGit via `brew install lazygit` (fallback to GitHub releases)
+- LazyGit via `brew install lazygit` (fallback to GitHub releases with ARM64/x86_64 detection)
 - Automatic Homebrew installation if not present
+- Full support for Apple Silicon (M1/M2/M3) and Intel Macs
 
 ### **Essential Keybindings**
 

@@ -108,9 +108,11 @@ nvim -c "checkhealth"
 The install script (`install.sh`) provides flexible installation with these key flags:
 - `--skip-fonts` - Skip JetBrains Mono font installation
 - `--skip-deps` - Skip dependency installations (ripgrep, fd, fzf)
-- `--skip-node/python/rust` - Skip language-specific installations
-- `--with-tmux` - Install optimized tmux configuration
+- `--skip-node/python` - Skip language-specific installations
+- `--skip-tmux` - Skip tmux installation and configuration (installed by default)
 - `--skip-backup` - Skip backing up existing configuration
+
+**Note**: Tmux configuration is now installed by default as it's essential for the Claude CLI workflow.
 
 ## Essential Keybindings (Space as Leader)
 

@@ -41,7 +41,7 @@ SKIP_NODE=false
 SKIP_PYTHON=false
 SKIP_BACKUP=false
 SKIP_PLUGINS=false
-INSTALL_TMUX_CONFIG=false
+SKIP_TMUX=false
 SHOW_STATE=false
 RESET_STATE=false
 
@@ -72,8 +72,8 @@ while [[ $# -gt 0 ]]; do
             SKIP_PLUGINS=true
             shift
             ;;
-        --with-tmux)
-            INSTALL_TMUX_CONFIG=true
+        --skip-tmux)
+            SKIP_TMUX=true
             shift
             ;;
         --show-state)
@@ -96,15 +96,15 @@ while [[ $# -gt 0 ]]; do
             echo "  --skip-python     Skip Python3 installation"
             echo "  --skip-backup     Skip backing up existing configuration"
             echo "  --skip-plugins    Skip automatic plugin installation"
-            echo "  --with-tmux       Install optimal tmux configuration"
+            echo "  --skip-tmux       Skip tmux installation and configuration"
             echo "  --show-state      Show current installation state and exit"
             echo "  --reset-state     Reset all installation states (for testing)"
             echo "  -h, --help        Show this help message"
             echo ""
             echo "Examples:"
-            echo "  ./install.sh                    # Full installation"
+            echo "  ./install.sh                    # Full installation with tmux"
             echo "  ./install.sh --skip-fonts       # Install without fonts"
-            echo "  ./install.sh --with-tmux        # Install with tmux config"
+            echo "  ./install.sh --skip-tmux        # Install without tmux configuration"
             echo "  ./install.sh --show-state       # Check installation status"
             echo "  ./install.sh --reset-state      # Reset state for fresh install"
             exit 0
@@ -776,7 +776,16 @@ install_lazygit_binary() {
             download_url="https://github.com/jesseduffield/lazygit/releases/latest/download/lazygit_${version}_Linux_x86_64.tar.gz"
             ;;
         "macos")
-            download_url="https://github.com/jesseduffield/lazygit/releases/latest/download/lazygit_${version}_Darwin_x86_64.tar.gz"
+            # Detect macOS architecture (Apple Silicon vs Intel)
+            local mac_arch
+            mac_arch=$(uname -m)
+            if [[ "$mac_arch" == "arm64" ]]; then
+                download_url="https://github.com/jesseduffield/lazygit/releases/latest/download/lazygit_${version}_Darwin_arm64.tar.gz"
+                log_action "LazyGit" "Detected Apple Silicon (ARM64)" "installing"
+            else
+                download_url="https://github.com/jesseduffield/lazygit/releases/latest/download/lazygit_${version}_Darwin_x86_64.tar.gz"
+                log_action "LazyGit" "Detected Intel (x86_64)" "installing"
+            fi
             ;;
     esac
     
@@ -900,8 +909,8 @@ install_lazygit() {
 
 # Install tmux configuration
 install_tmux() {
-    if [ "$INSTALL_TMUX_CONFIG" = false ]; then
-        log_action "Tmux" "Not requested" "skip"
+    if [ "$SKIP_TMUX" = true ]; then
+        log_action "Tmux" "Skipped by user flag" "skip"
         return
     fi
     
@@ -992,8 +1001,8 @@ main() {
     fi
     echo -e "3. Run ${YELLOW}:checkhealth${NC} to verify setup"
     echo -e "4. Read the usage guide: ${YELLOW}nvim ~/claude/nvim/USAGE_GUIDE.md${NC}"
-    if [ "$INSTALL_TMUX_CONFIG" = true ]; then
-        echo -e "5. Start tmux: ${YELLOW}tmux${NC} (config installed)"
+    if [ "$SKIP_TMUX" = false ]; then
+        echo -e "5. Start tmux: ${YELLOW}tmux${NC} (optimized configuration installed)"
     fi
     echo -e "\n${GREEN}Happy coding! 🎉${NC}"
     echo -e "\n${BLUE}💡 Tip: Run './install.sh --show-state' to check installation status anytime${NC}"
