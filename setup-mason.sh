@@ -102,17 +102,17 @@ end
 if #need_installation > 0 then
     print("\n=== MISSING SERVERS DETECTED ===")
     print("Found " .. #need_installation .. " servers that need installation:")
-    
+
     for _, server in ipairs(need_installation) do
         print("  ⏳ " .. server)
     end
-    
+
     print("\n💡 INSTALLATION METHODS:")
     print("1. Interactive (Recommended): Run 'nvim -c :Mason' and install manually")
     print("2. Automatic: LSP servers will install when first used")
     print("3. Force reinstall: Run './install.sh --reset-state'")
     print("4. Re-run this script after manual installation to verify")
-    
+
     -- Mark as guidance provided, not failed installation
     newly_installed = 0  -- We didn't actually install anything
     failed_count = 0     -- This isn't a failure, just missing servers

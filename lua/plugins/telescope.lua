@@ -21,13 +21,13 @@ return {
     { "<leader>fk", "<cmd>Telescope keymaps<cr>", desc = "Keymaps" },
     { "<leader>fm", "<cmd>Telescope marks<cr>", desc = "Marks" },
     { "<leader>fr", "<cmd>Telescope registers<cr>", desc = "Registers" },
-    
+
     -- Git pickers
     { "<leader>gc", "<cmd>Telescope git_commits<cr>", desc = "Git commits" },
     { "<leader>gb", "<cmd>Telescope git_branches<cr>", desc = "Git branches" },
     { "<leader>gs", "<cmd>Telescope git_status<cr>", desc = "Git status" },
     { "<leader>gS", "<cmd>Telescope git_stash<cr>", desc = "Git stash" },
-    
+
     -- LSP pickers
     { "<leader>lr", "<cmd>Telescope lsp_references<cr>", desc = "LSP references" },
     { "<leader>ld", "<cmd>Telescope lsp_definitions<cr>", desc = "LSP definitions" },
@@ -40,7 +40,7 @@ return {
   config = function()
     local telescope = require("telescope")
     local actions = require("telescope.actions")
-    
+
     telescope.setup({
       defaults = {
         prompt_prefix = " ",
@@ -115,10 +115,10 @@ return {
         find_files = {
           theme = "dropdown",
           previewer = false,
-          find_command = { 
-            "rg", 
-            "--files", 
-            "--hidden", 
+          find_command = {
+            "rg",
+            "--files",
+            "--hidden",
             "--follow",
             "--no-ignore-vcs",
             "--glob", "!**/.git/*",
@@ -180,7 +180,7 @@ return {
         },
       },
     })
-    
+
     -- Load extensions
     telescope.load_extension("fzf")
   end,
