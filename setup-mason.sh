@@ -64,6 +64,12 @@ local servers = {
     "terraformls",     -- Terraform (HCL)
 }
 
+-- Additional tools to ensure are installed
+local additional_tools = {
+    "actionlint",       -- GitHub Actions linter
+    "autopep8",         -- Python formatter
+}
+
 local already_installed = 0
 local newly_installed = 0
 local failed_count = 0
@@ -76,8 +82,21 @@ for _, server in ipairs(installed_servers) do
     installed_set[server] = true
 end
 
+-- Check additional tools via Mason registry
+local mason_registry_ok, mason_registry = pcall(require, "mason-registry")
+local installed_tools = {}
+if mason_registry_ok then
+    for _, tool in ipairs(additional_tools) do
+        local pkg = mason_registry.get_package(tool)
+        if pkg:is_installed() then
+            installed_tools[tool] = true
+        end
+    end
+end
+
 -- First pass: Check what's already installed and what needs installation
 print("\n=== IDEMPOTENT STATUS CHECK ===")
+print("LSP Servers:")
 for _, server in ipairs(servers) do
     if installed_set[server] then
         print("✅ " .. server .. " - already installed")
@@ -88,45 +107,58 @@ for _, server in ipairs(servers) do
     end
 end
 
+print("\nAdditional Tools:")
+for _, tool in ipairs(additional_tools) do
+    if installed_tools[tool] then
+        print("✅ " .. tool .. " - already installed")
+        already_installed = already_installed + 1
+    else
+        print("⏳ " .. tool .. " - needs installation")
+        table.insert(need_installation, tool)
+    end
+end
+
+local total_items = #servers + #additional_tools
+
 -- Early exit if everything is already installed
 if #need_installation == 0 and failed_count == 0 then
-    print("\n🎉 All LSP servers are already installed! Nothing to do.")
+    print("\n🎉 All LSP servers and tools are already installed! Nothing to do.")
     print("\nFINAL SUMMARY:")
-    print("- Already installed: " .. already_installed .. "/" .. #servers)
+    print("- Already installed: " .. already_installed .. "/" .. total_items)
     print("- No action needed - system is up to date")
     vim.cmd("qall!")
     return
 end
 
--- Second pass: Provide guidance for missing servers
+-- Second pass: Provide guidance for missing items
 if #need_installation > 0 then
-    print("\n=== MISSING SERVERS DETECTED ===")
-    print("Found " .. #need_installation .. " servers that need installation:")
+    print("\n=== MISSING ITEMS DETECTED ===")
+    print("Found " .. #need_installation .. " items that need installation:")
 
-    for _, server in ipairs(need_installation) do
-        print("  ⏳ " .. server)
+    for _, item in ipairs(need_installation) do
+        print("  ⏳ " .. item)
     end
 
     print("\n💡 INSTALLATION METHODS:")
     print("1. Interactive (Recommended): Run 'nvim -c :Mason' and install manually")
-    print("2. Automatic: LSP servers will install when first used")
+    print("2. Automatic: Items will install when first used or on next nvim startup")
     print("3. Force reinstall: Run './install.sh --reset-state'")
     print("4. Re-run this script after manual installation to verify")
 
     -- Mark as guidance provided, not failed installation
     newly_installed = 0  -- We didn't actually install anything
-    failed_count = 0     -- This isn't a failure, just missing servers
+    failed_count = 0     -- This isn't a failure, just missing items
 end
 
 -- Final status report
 print("\n=== FINAL SUMMARY ===")
-print("- Already installed: " .. already_installed .. "/" .. #servers)
-print("- Need installation: " .. #need_installation .. "/" .. #servers)
+print("- Already installed: " .. already_installed .. "/" .. total_items)
+print("- Need installation: " .. #need_installation .. "/" .. total_items)
 
 if #need_installation == 0 then
-    print("✅ All LSP servers are installed - system ready!")
+    print("✅ All LSP servers and tools are installed - system ready!")
 else
-    print("📋 " .. #need_installation .. " servers need installation - see guidance above")
+    print("📋 " .. #need_installation .. " items need installation - see guidance above")
     print("💡 This is normal for first-time setup - use interactive installation")
 end
 

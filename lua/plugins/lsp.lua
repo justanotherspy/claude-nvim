@@ -8,6 +8,7 @@ return {
     dependencies = {
       "williamboman/mason.nvim",
       "williamboman/mason-lspconfig.nvim",
+      "WhoIsSethDaniel/mason-tool-installer.nvim",
       "hrsh7th/cmp-nvim-lsp",
       { "folke/neodev.nvim", opts = {} },
       "b0o/schemastore.nvim",
@@ -67,6 +68,21 @@ return {
         },
         automatic_installation = true,
       })
+
+      -- Install additional tools via Mason
+      local mason_tool_installer_ok, mason_tool_installer = pcall(require, "mason-tool-installer")
+      if mason_tool_installer_ok then
+        mason_tool_installer.setup({
+          ensure_installed = {
+            -- Linters
+            "actionlint",     -- GitHub Actions linter
+            -- Formatters  
+            "autopep8",       -- Python formatter
+          },
+          auto_update = true,
+          run_on_start = true,
+        })
+      end
 
       -- Enhanced automatic installation with retry logic for macOS ARM
       mason_lspconfig.setup_handlers({

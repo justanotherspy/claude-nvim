@@ -125,3 +125,33 @@ autocmd({ "BufRead", "BufNewFile" }, {
     vim.bo.filetype = "terraform-vars"
   end,
 })
+
+-- Ensure Mason tools are installed on first startup
+autocmd("VimEnter", {
+  callback = function()
+    -- Defer the execution to allow all plugins to load first
+    vim.defer_fn(function()
+      -- Check if mason-tool-installer is available and trigger installation
+      local mason_tool_installer_ok, mason_tool_installer = pcall(require, "mason-tool-installer")
+      if mason_tool_installer_ok then
+        mason_tool_installer.run_on_start()
+      end
+      
+      -- Trigger any pending lazy plugin installations
+      local lazy_ok, lazy = pcall(require, "lazy")
+      if lazy_ok then
+        lazy.sync({ wait = false, show = false })
+      end
+    end, 100)
+  end,
+})
+
+-- Force GitHub Actions files to use YAML filetype for actionlint
+autocmd({ "BufRead", "BufNewFile" }, {
+  pattern = { "*/.github/workflows/*.yml", "*/.github/workflows/*.yaml" },
+  callback = function()
+    vim.bo.filetype = "yaml"
+    -- Set a buffer variable to indicate this is a GitHub Actions file
+    vim.b.is_github_actions = true
+  end,
+})
