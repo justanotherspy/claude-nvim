@@ -78,6 +78,8 @@ return {
         on_open = function(term)
           vim.cmd("startinsert!")
           vim.api.nvim_buf_set_keymap(term.bufnr, "n", "q", "<cmd>close<CR>", { noremap = true, silent = true })
+          -- Disable Esc mapping for LazyGit buffer to avoid mode conflicts
+          vim.api.nvim_buf_set_keymap(term.bufnr, "t", "<Esc>", "<Esc>", { noremap = true, silent = true })
         end,
         on_close = function(term)
           vim.cmd("startinsert!")
