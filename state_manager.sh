@@ -11,6 +11,7 @@ VALID_COMPONENTS=(
     "neovim_check" "git_install" "ripgrep_install" "fd_install" 
     "fzf_install" "node_install" "python_install" "fonts_install"
     "config_backup" "config_install" "lazyvim_install" "plugins_install" "tmux_install"
+    "lazygit_install" "yq_install" "jq_install"
 )
 
 # Validate component name for security
@@ -31,13 +32,14 @@ validate_component_name() {
 
 # Ensure state directory exists
 init_state() {
-    # Check if yq is available
+    # Check if yq is available (will be installed if missing)
     if ! command -v yq &>/dev/null; then
-        echo "Error: yq is required for state management but not found in PATH"
-        echo "Please install yq: https://github.com/mikefarah/yq/#install"
-        echo "On Ubuntu/Debian: sudo apt install yq"
-        echo "Or download from: https://github.com/mikefarah/yq/releases"
-        exit 1
+        echo "Warning: yq not found - will be installed as part of setup"
+    fi
+    
+    # Check if jq is available (will be installed if missing)  
+    if ! command -v jq &>/dev/null; then
+        echo "Warning: jq not found - will be installed as part of setup"
     fi
     
     mkdir -p "$STATE_DIR"
@@ -49,6 +51,8 @@ init_state() {
 # Values: notcheckedyet, installed, notinstalled
 neovim_check: notcheckedyet
 git_install: notcheckedyet
+yq_install: notcheckedyet
+jq_install: notcheckedyet
 ripgrep_install: notcheckedyet
 fd_install: notcheckedyet
 fzf_install: notcheckedyet
@@ -59,6 +63,7 @@ config_backup: notcheckedyet
 config_install: notcheckedyet
 lazyvim_install: notcheckedyet
 plugins_install: notcheckedyet
+lazygit_install: notcheckedyet
 tmux_install: notcheckedyet
 EOF
     fi
@@ -172,12 +177,24 @@ show_state() {
     yq eval 'to_entries | .[] | .key + ": " + .value' "$STATE_FILE"
 }
 
+# Get all components with notcheckedyet status
+get_unchecked_components() {
+    yq eval 'to_entries | map(select(.value == "notcheckedyet")) | .[].key' "$STATE_FILE" 2>/dev/null
+}
+
+# Check if there are any unchecked components
+has_unchecked_components() {
+    local unchecked_count
+    unchecked_count=$(yq eval '[to_entries | map(select(.value == "notcheckedyet"))] | length' "$STATE_FILE" 2>/dev/null)
+    [ "$unchecked_count" -gt 0 ]
+}
+
 # Reset all states to notcheckedyet (for testing)
 reset_state() {
     local components=(
-        "neovim_check" "git_install" "ripgrep_install" "fd_install" 
+        "neovim_check" "git_install" "yq_install" "jq_install" "ripgrep_install" "fd_install" 
         "fzf_install" "node_install" "python_install" "fonts_install"
-        "config_backup" "config_install" "lazyvim_install" "plugins_install" "tmux_install"
+        "config_backup" "config_install" "lazyvim_install" "plugins_install" "lazygit_install" "tmux_install"
     )
     
     for component in "${components[@]}"; do

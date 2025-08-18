@@ -183,6 +183,45 @@ install_git() {
     fi
 }
 
+# Install yq and jq for YAML/JSON processing
+install_yq_jq() {
+    # Install yq
+    if needs_action "yq_install"; then
+        if check_and_update_state "yq_install" "command -v yq"; then
+            log_action "yq" "Already available" "already"
+        else
+            log_action "yq" "Installing via apt" "installing"
+            if install_and_update_state "yq_install" "sudo apt update && sudo apt install -y yq" "command -v yq"; then
+                log_action "yq" "Installation completed" "success"
+            else
+                log_action "yq" "Installation failed" "failed"
+                echo -e "${RED}yq is required for state management. Please install manually:${NC}"
+                echo "  wget -qO- https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 | sudo tee /usr/local/bin/yq > /dev/null"
+                echo "  sudo chmod +x /usr/local/bin/yq"
+                exit 1
+            fi
+        fi
+    else
+        log_action "yq" "Installation" "skip"
+    fi
+    
+    # Install jq
+    if needs_action "jq_install"; then
+        if check_and_update_state "jq_install" "command -v jq"; then
+            log_action "jq" "Already available" "already"
+        else
+            log_action "jq" "Installing via apt" "installing"
+            if install_and_update_state "jq_install" "sudo apt update && sudo apt install -y jq" "command -v jq"; then
+                log_action "jq" "Installation completed" "success"
+            else
+                log_action "jq" "Installation failed" "failed"
+            fi
+        fi
+    else
+        log_action "jq" "Installation" "skip"
+    fi
+}
+
 # Install dependencies
 install_dependencies() {
     if [ "$SKIP_DEPS" = true ]; then
@@ -345,24 +384,25 @@ backup_config() {
     fi
 }
 
-# Install new configuration
+# Install new configuration (always copy to prevent drift)
 install_config() {
     if needs_action "config_install"; then
-        if [ -d "$HOME/.config/nvim" ] && [ -f "$HOME/.config/nvim/init.lua" ]; then
+        log_action "Config Install" "Copying configuration files to prevent drift" "installing"
+        if mkdir -p "$HOME/.config/nvim" && cp -r ./* "$HOME/.config/nvim/"; then
             set_state "config_install" "installed"
-            log_action "Config Install" "Already installed" "already"
+            log_action "Config Install" "Configuration files copied" "success"
         else
-            log_action "Config Install" "Copying configuration files" "installing"
-            if mkdir -p "$HOME/.config/nvim" && cp -r ./* "$HOME/.config/nvim/"; then
-                set_state "config_install" "installed"
-                log_action "Config Install" "Configuration files copied" "success"
-            else
-                set_state "config_install" "notinstalled"
-                log_action "Config Install" "Copy failed" "failed"
-            fi
+            set_state "config_install" "notinstalled"
+            log_action "Config Install" "Copy failed" "failed"
         fi
     else
-        log_action "Config Install" "Already installed" "skip"
+        # Always copy configs even if marked as installed to prevent drift
+        log_action "Config Install" "Updating configs to prevent drift" "installing"
+        if cp -r ./* "$HOME/.config/nvim/" 2>/dev/null; then
+            log_action "Config Install" "Configuration updated successfully" "success"
+        else
+            log_action "Config Install" "Configuration update failed" "failed"
+        fi
     fi
 }
 
@@ -410,6 +450,27 @@ install_plugins() {
     fi
 }
 
+# Install lazygit for Git workflow
+install_lazygit() {
+    if needs_action "lazygit_install"; then
+        if check_and_update_state "lazygit_install" "command -v lazygit"; then
+            log_action "LazyGit" "Already available" "already"
+        else
+            log_action "LazyGit" "Installing via GitHub releases" "installing"
+            install_cmd="LAZYGIT_VERSION=\$(curl -s \"https://api.github.com/repos/jesseduffield/lazygit/releases/latest\" | grep -Po '\"tag_name\": \"v\\K[^\"]*') && curl -Lo lazygit.tar.gz \"https://github.com/jesseduffield/lazygit/releases/latest/download/lazygit_\${LAZYGIT_VERSION}_Linux_x86_64.tar.gz\" && tar xf lazygit.tar.gz lazygit && sudo install lazygit /usr/local/bin && rm lazygit.tar.gz lazygit"
+            if install_and_update_state "lazygit_install" "$install_cmd" "command -v lazygit"; then
+                log_action "LazyGit" "Installation completed" "success"
+            else
+                log_action "LazyGit" "Installation failed" "failed"
+                echo -e "${YELLOW}Note: LazyGit installation failed. You can install manually:${NC}"
+                echo "  https://github.com/jesseduffield/lazygit#installation"
+            fi
+        fi
+    else
+        log_action "LazyGit" "Already installed" "skip"
+    fi
+}
+
 # Install tmux configuration
 install_tmux() {
     if [ "$INSTALL_TMUX_CONFIG" = false ]; then
@@ -454,8 +515,15 @@ install_tmux() {
 main() {
     echo -e "\n${YELLOW}Checking installation state...${NC}"
     
+    # Check if there are unchecked components and inform user
+    if has_unchecked_components; then
+        echo -e "${BLUE}ℹ️  Found components that need checking. Running full scan...${NC}"
+    fi
+    
+    # Run all installation functions - they will check their own state
     check_neovim
     install_git
+    install_yq_jq
     install_dependencies
     install_node
     install_python
@@ -464,11 +532,21 @@ main() {
     install_config
     install_lazyvim
     install_plugins
+    install_lazygit
     install_tmux
     
+    # Final state check and summary
     echo -e "\n${GREEN}✅ Installation process complete!${NC}"
     echo -e "\n${BLUE}Installation Summary:${NC}"
     show_state
+    
+    # Check if all components are now properly checked
+    if has_unchecked_components; then
+        echo -e "\n${YELLOW}⚠️  Some components are still unchecked. This might indicate an issue.${NC}"
+        echo -e "${YELLOW}Run './install.sh --reset-state' if you want to force a complete re-check.${NC}"
+    else
+        echo -e "\n${GREEN}✅ All components have been checked and configured.${NC}"
+    fi
     
     echo -e "\n${GREEN}Next steps:${NC}"
     echo -e "1. Open Neovim: ${YELLOW}nvim${NC}"
