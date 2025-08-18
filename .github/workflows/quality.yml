@@ -2,28 +2,32 @@ name: Code Quality Checks
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [ main, develop, feature/* ]
   pull_request:
     branches: [ main ]
 
 jobs:
   shellcheck:
-    name: ShellCheck
+    name: Shell Script Quality
     runs-on: ubuntu-latest
     
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
       
-    - name: Run ShellCheck
-      uses: ludeeus/action-shellcheck@master
-      with:
-        scandir: '.'
-        format: gcc
-        severity: error
-        additional_files: '*.sh'
-      env:
-        SHELLCHECK_OPTS: -e SC1091 -e SC2034
+    - name: Install ShellCheck
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y shellcheck
+      
+    - name: Run syntax check
+      run: make syntax-check
+      
+    - name: Run ShellCheck linting
+      run: make lint
+      
+    - name: Run security scan
+      run: make security-scan
 
   lua-lint:
     name: Lua Linting
