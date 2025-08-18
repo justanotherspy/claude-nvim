@@ -43,6 +43,8 @@ SKIP_PYTHON=false
 SKIP_BACKUP=false
 SKIP_PLUGINS=false
 SKIP_TMUX=false
+SKIP_LUA=false
+SKIP_LUAROCKS=false
 SHOW_STATE=false
 RESET_STATE=false
 
@@ -77,6 +79,14 @@ while [[ $# -gt 0 ]]; do
             SKIP_TMUX=true
             shift
             ;;
+        --skip-lua)
+            SKIP_LUA=true
+            shift
+            ;;
+        --skip-luarocks)
+            SKIP_LUAROCKS=true
+            shift
+            ;;
         --show-state)
             SHOW_STATE=true
             shift
@@ -98,6 +108,8 @@ while [[ $# -gt 0 ]]; do
             echo "  --skip-backup     Skip backing up existing configuration"
             echo "  --skip-plugins    Skip automatic plugin installation"
             echo "  --skip-tmux       Skip tmux installation and configuration"
+            echo "  --skip-lua        Skip Lua 5.4 installation"
+            echo "  --skip-luarocks   Skip luarocks installation"
             echo "  --show-state      Show current installation state and exit"
             echo "  --reset-state     Reset all installation states (for testing)"
             echo "  -h, --help        Show this help message"
@@ -106,6 +118,8 @@ while [[ $# -gt 0 ]]; do
             echo "  ./install.sh                    # Full installation with tmux"
             echo "  ./install.sh --skip-fonts       # Install without fonts"
             echo "  ./install.sh --skip-tmux        # Install without tmux configuration"
+            echo "  ./install.sh --skip-lua         # Install without Lua 5.4"
+            echo "  ./install.sh --skip-luarocks    # Install without luarocks"
             echo "  ./install.sh --show-state       # Check installation status"
             echo "  ./install.sh --reset-state      # Reset state for fresh install"
             exit 0
@@ -795,6 +809,177 @@ install_python() {
     fi
 }
 
+# Install Lua 5.4
+install_lua() {
+    if [ "$SKIP_LUA" = true ]; then
+        log_action "Lua 5.4" "Skipped by user flag" "skip"
+        return
+    fi
+
+    if needs_action "lua_install"; then
+        if check_and_update_state "lua_install" "lua5.4 -v || lua -v | grep -q '5.4'"; then
+            log_action "Lua 5.4" "Already available" "already"
+        else
+            case "$OS_TYPE" in
+                "linux")
+                    log_action "Lua 5.4" "Installing via apt" "installing"
+                    # Install lua5.4 and lua5.4-dev (for building luarocks modules)
+                    if install_and_update_state "lua_install" "install_package lua5.4; install_package lua5.4-dev liblua5.4-dev" "lua5.4 -v || lua -v | grep -q '5.4'"; then
+                        log_action "Lua 5.4" "Installation completed" "success"
+                        # Create symlinks for common lua commands if they don't exist
+                        if ! command -v lua &>/dev/null && command -v lua5.4 &>/dev/null; then
+                            sudo ln -sf "$(which lua5.4)" /usr/local/bin/lua 2>/dev/null || true
+                        fi
+                    else
+                        log_action "Lua 5.4" "Installation failed" "failed"
+                    fi
+                    ;;
+                "macos")
+                    log_action "Lua 5.4" "Installing via Homebrew" "installing"
+                    if install_and_update_state "lua_install" "install_package lua" "lua -v | grep -q '5.4'"; then
+                        log_action "Lua 5.4" "Installation completed" "success"
+                    else
+                        log_action "Lua 5.4" "Installation failed" "failed"
+                    fi
+                    ;;
+            esac
+        fi
+    else
+        log_action "Lua 5.4" "Installation" "skip"
+    fi
+}
+
+# Helper function to install luarocks from source
+install_luarocks_from_source() {
+    local temp_dir
+    temp_dir=$(mktemp -d)
+    cleanup() { rm -rf "$temp_dir"; }
+    trap cleanup EXIT
+
+    log_action "Luarocks" "Downloading luarocks-3.12.2 from source" "installing"
+    
+    # Download the specified version
+    local download_url="https://luarocks.org/releases/luarocks-3.12.2.tar.gz"
+    if ! download_and_verify "$download_url" "$temp_dir/luarocks-3.12.2.tar.gz" "" "luarocks source"; then
+        echo -e "${RED}Failed to download luarocks source${NC}"
+        return 1
+    fi
+
+    # Extract
+    log_action "Luarocks" "Extracting luarocks source" "installing"
+    cd "$temp_dir" || return 1
+    if ! tar zxf luarocks-3.12.2.tar.gz; then
+        echo -e "${RED}Failed to extract luarocks archive${NC}"
+        return 1
+    fi
+
+    # Build and install
+    log_action "Luarocks" "Configuring, building and installing luarocks" "installing"
+    cd luarocks-3.12.2 || return 1
+    
+    # Configure with appropriate Lua version detection
+    local configure_opts=""
+    case "$OS_TYPE" in
+        "linux")
+            # On Linux, specify lua5.4 explicitly if available
+            if command -v lua5.4 &>/dev/null; then
+                configure_opts="--lua-version=5.4 --with-lua-include=/usr/include/lua5.4"
+            fi
+            ;;
+        "macos")
+            # On macOS with Homebrew, lua should be available
+            if command -v lua &>/dev/null; then
+                local lua_prefix
+                lua_prefix="$(brew --prefix lua 2>/dev/null)" || lua_prefix="/opt/homebrew"
+                if [ -d "$lua_prefix" ]; then
+                    configure_opts="--with-lua=$lua_prefix"
+                fi
+            fi
+            ;;
+    esac
+
+    if ! ./configure $configure_opts; then
+        echo -e "${RED}Failed to configure luarocks${NC}"
+        return 1
+    fi
+
+    if ! make; then
+        echo -e "${RED}Failed to build luarocks${NC}"
+        return 1
+    fi
+
+    if ! sudo make install; then
+        echo -e "${RED}Failed to install luarocks${NC}"
+        return 1
+    fi
+
+    # Verify installation
+    if ! command -v luarocks &>/dev/null; then
+        echo -e "${RED}Luarocks installation verification failed${NC}"
+        return 1
+    fi
+
+    return 0
+}
+
+# Install luarocks for Lua package management
+install_luarocks() {
+    if [ "$SKIP_LUAROCKS" = true ]; then
+        log_action "Luarocks" "Skipped by user flag" "skip"
+        return
+    fi
+
+    if needs_action "luarocks_install"; then
+        if check_and_update_state "luarocks_install" "command -v luarocks"; then
+            log_action "Luarocks" "Already available" "already"
+        else
+            # Ensure Lua is installed first
+            if ! (lua5.4 -v &>/dev/null || lua -v | grep -q '5.4' &>/dev/null); then
+                log_action "Luarocks" "Lua 5.4 not found, installing first" "installing"
+                install_lua
+            fi
+
+            case "$OS_TYPE" in
+                "linux")
+                    log_action "Luarocks" "Installing build dependencies" "installing"
+                    # Install build dependencies
+                    install_package build-essential
+                    install_package wget
+                    install_package unzip
+                    install_package libreadline-dev
+                    
+                    # Install from source using specified method
+                    if install_luarocks_from_source; then
+                        set_state "luarocks_install" "installed"
+                        log_action "Luarocks" "Installation completed" "success"
+                    else
+                        set_state "luarocks_install" "notinstalled"
+                        log_action "Luarocks" "Installation failed" "failed"
+                    fi
+                    ;;
+                "macos")
+                    # Try Homebrew first, fall back to source
+                    log_action "Luarocks" "Trying Homebrew installation" "installing"
+                    if install_and_update_state "luarocks_install" "install_package luarocks" "command -v luarocks"; then
+                        log_action "Luarocks" "Homebrew installation completed" "success"
+                    else
+                        log_action "Luarocks" "Homebrew failed, installing from source" "installing"
+                        if install_luarocks_from_source; then
+                            set_state "luarocks_install" "installed"
+                            log_action "Luarocks" "Source installation completed" "success"
+                        else
+                            set_state "luarocks_install" "notinstalled"
+                            log_action "Luarocks" "Installation failed" "failed"
+                        fi
+                    fi
+                    ;;
+            esac
+        fi
+    else
+        log_action "Luarocks" "Installation" "skip"
+    fi
+}
+
 # Install JetBrains Mono font
 install_fonts() {
     if [ "$SKIP_FONTS" = true ]; then
@@ -1190,6 +1375,8 @@ main() {
     install_dependencies
     install_node
     install_python
+    install_lua
+    install_luarocks
     install_fonts
     backup_config
     install_config

@@ -9,7 +9,7 @@ STATE_FILE="$STATE_DIR/state.yaml"
 # Valid component names (whitelist for security)
 VALID_COMPONENTS=(
     "neovim_check" "git_install" "ripgrep_install" "fd_install"
-    "fzf_install" "node_install" "python_install" "fonts_install"
+    "fzf_install" "node_install" "python_install" "lua_install" "luarocks_install" "fonts_install"
     "config_backup" "config_install" "lazyvim_install" "plugins_install" "tmux_install"
     "lazygit_install" "yq_install" "jq_install"
 )
@@ -58,6 +58,8 @@ fd_install: notcheckedyet
 fzf_install: notcheckedyet
 node_install: notcheckedyet
 python_install: notcheckedyet
+lua_install: notcheckedyet
+luarocks_install: notcheckedyet
 fonts_install: notcheckedyet
 config_backup: notcheckedyet
 config_install: notcheckedyet
@@ -194,7 +196,7 @@ has_unchecked_components() {
 reset_state() {
     local components=(
         "neovim_check" "git_install" "yq_install" "jq_install" "ripgrep_install" "fd_install"
-        "fzf_install" "node_install" "python_install" "fonts_install"
+        "fzf_install" "node_install" "python_install" "lua_install" "luarocks_install" "fonts_install"
         "config_backup" "config_install" "lazyvim_install" "plugins_install" "lazygit_install" "tmux_install"
     )
 
