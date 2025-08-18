@@ -2,7 +2,7 @@
 # Provides comprehensive testing, validation, and quality assurance
 
 .DEFAULT_GOAL := help
-.PHONY: help test test-unit test-integration test-all lint syntax-check validate-checksums clean install-dev-deps
+.PHONY: help test test-unit test-integration test-all lint syntax-check validate-checksums clean install-dev-deps install test-install
 
 # Colors for output
 RED := \033[0;31m
@@ -57,6 +57,8 @@ help:
 	@echo "  security-scan     - Scan for security issues"
 	@echo ""
 	@echo "$(YELLOW)Development Targets:$(NC)"
+	@echo "  install           - Run the install script (idempotent)"
+	@echo "  test-install      - Test installation with various flags"
 	@echo "  install-dev-deps  - Install development dependencies"
 	@echo "  clean             - Clean test artifacts and temporary files"
 	@echo "  show-env          - Show environment information"
@@ -370,6 +372,26 @@ endif
 	@echo -n "curl: "; command -v curl >/dev/null && echo "$(GREEN)✅$(NC)" || echo "$(RED)❌$(NC)"
 	@echo -n "yq: "; command -v yq >/dev/null && echo "$(GREEN)✅$(NC)" || echo "$(RED)❌$(NC)"
 	@echo -n "shellcheck: "; command -v shellcheck >/dev/null && echo "$(GREEN)✅$(NC)" || echo "$(RED)❌$(NC)"
+
+## Run the install script (idempotent, deploys repo config)
+install:
+	@echo "$(BLUE)🚀 Running install script (idempotent)...$(NC)"
+	@echo "$(BLUE)This will deploy the latest configuration from the repository$(NC)"
+	@./$(INSTALL_SCRIPT)
+	@echo "$(GREEN)✅ Installation completed!$(NC)"
+
+## Test installation with various flags
+test-install:
+	@echo "$(BLUE)🧪 Testing installation with various configurations...$(NC)"
+	@echo "$(BLUE)Testing help flag...$(NC)"
+	@./$(INSTALL_SCRIPT) --help
+	@echo ""
+	@echo "$(BLUE)Testing state display...$(NC)"
+	@./$(INSTALL_SCRIPT) --show-state
+	@echo ""
+	@echo "$(BLUE)Testing dry run with skip flags...$(NC)"
+	@./$(INSTALL_SCRIPT) --skip-fonts --skip-tmux --show-state
+	@echo "$(GREEN)✅ Installation tests completed!$(NC)"
 
 ## Run full CI pipeline
 ci: syntax-check lint test security-scan
