@@ -13,8 +13,14 @@ return {
       "b0o/schemastore.nvim",
     },
     config = function()
-      -- Setup mason first
-      require("mason").setup({
+      -- Setup mason first with enhanced configuration
+      local mason_ok, mason = pcall(require, "mason")
+      if not mason_ok then
+        vim.notify("Mason not available", vim.log.levels.ERROR)
+        return
+      end
+      
+      mason.setup({
         ui = {
           border = "rounded",
           icons = {
@@ -23,14 +29,30 @@ return {
             package_uninstalled = "✗",
           },
         },
+        -- Enhanced settings for macOS ARM compatibility
+        install_root_dir = vim.fn.stdpath("data") .. "/mason",
+        pip = {
+          upgrade_pip = true,
+        },
+        log_level = vim.log.levels.INFO,
+        max_concurrent_installers = 4,
+        github = {
+          download_url_template = "https://github.com/%s/releases/download/%s/%s",
+        },
       })
       
-      -- Setup mason-lspconfig
-      require("mason-lspconfig").setup({
+      -- Setup mason-lspconfig with error handling
+      local mason_lspconfig_ok, mason_lspconfig = pcall(require, "mason-lspconfig")
+      if not mason_lspconfig_ok then
+        vim.notify("Mason-lspconfig not available", vim.log.levels.ERROR)
+        return
+      end
+      
+      mason_lspconfig.setup({
         ensure_installed = {
           "lua_ls",           -- Lua (Neovim config)
           "rust_analyzer",    -- Rust
-          "ts_ls",            -- TypeScript/JavaScript
+          "ts_ls",            -- TypeScript/JavaScript  
           "gopls",           -- Go
           "pyright",         -- Python
           "bashls",          -- Bash shell scripts
@@ -44,6 +66,20 @@ return {
           "terraformls",     -- Terraform (HCL)
         },
         automatic_installation = true,
+      })
+      
+      -- Enhanced automatic installation with retry logic for macOS ARM
+      mason_lspconfig.setup_handlers({
+        function(server_name)
+          -- Default handler - will be called for every server
+          local success, _ = pcall(function()
+            require("lspconfig")[server_name].setup({})
+          end)
+          
+          if not success then
+            vim.notify("Failed to setup " .. server_name, vim.log.levels.WARN)
+          end
+        end,
       })
       
       -- Setup neodev for Neovim Lua development

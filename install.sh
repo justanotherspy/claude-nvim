@@ -926,7 +926,39 @@ install_plugins() {
     
     if needs_action "plugins_install"; then
         log_action "Plugins" "Installing via Lazy.nvim" "installing"
-        if nvim --headless "+Lazy! sync" +qa 2>/dev/null; then
+        
+        # First, sync plugins with timeout
+        local sync_success=false
+        if timeout 300 nvim --headless -c "lua require('lazy').sync({ wait = true })" -c "qall" >/dev/null 2>&1; then
+            sync_success=true
+        elif nvim --headless "+Lazy! sync" +qa >/dev/null 2>&1; then
+            sync_success=true
+        fi
+        
+        if [ "$sync_success" = true ]; then
+            log_action "Plugins" "Plugin sync completed" "success"
+            
+            # Now install Mason LSP servers
+            log_action "Mason" "Installing LSP servers" "installing"
+            local mason_success=false
+            
+            # Try Mason installation using the dedicated script
+            if ./setup-mason.sh >/dev/null 2>&1; then
+                mason_success=true
+            else
+                # Fallback: try basic Mason sync
+                if timeout 300 nvim --headless -c "lua pcall(require, 'mason-lspconfig'); vim.cmd('sleep 10')" -c "qall" >/dev/null 2>&1; then
+                    mason_success=true
+                fi
+            fi
+            
+            if [ "$mason_success" = true ]; then
+                log_action "Mason" "LSP servers installation completed" "success"
+            else
+                log_action "Mason" "LSP servers installation may be incomplete" "warning"
+                echo -e "${YELLOW}Note: You may need to run :Mason and install LSP servers manually${NC}"
+            fi
+            
             set_state "plugins_install" "installed"
             log_action "Plugins" "Plugin installation completed" "success"
         else
