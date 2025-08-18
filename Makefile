@@ -139,6 +139,86 @@ syntax-check:
 	@bash -n $(STATE_MANAGER) && echo "$(GREEN)✅ $(STATE_MANAGER) syntax OK$(NC)" || (echo "$(RED)❌ $(STATE_MANAGER) syntax error$(NC)" && exit 1)
 	@find $(TEST_DIR) -name "*.sh" -exec echo "$(BLUE)Checking {}...$(NC)" \; -exec bash -n {} \; -exec echo "$(GREEN)✅ {} syntax OK$(NC)" \;
 
+## Validate YAML files (workflows, configs, etc.)
+validate-yaml:
+	@echo "$(BLUE)📋 Validating YAML files...$(NC)"
+	@if command -v yq >/dev/null 2>&1; then \
+		echo "$(BLUE)Checking GitHub workflow files...$(NC)"; \
+		for file in .github/workflows/*.yml .github/workflows/*.yaml 2>/dev/null; do \
+			if [ -f "$$file" ]; then \
+				echo -n "$(BLUE)Validating $$(basename $$file)... $(NC)"; \
+				if yq eval '.' "$$file" > /dev/null 2>&1; then \
+					echo "$(GREEN)✅$(NC)"; \
+				else \
+					echo "$(RED)❌$(NC)"; \
+					echo "$(RED)Error in $$file:$(NC)"; \
+					yq eval '.' "$$file" 2>&1 | head -10; \
+					exit 1; \
+				fi; \
+			fi; \
+		done; \
+		echo "$(BLUE)Checking other YAML files...$(NC)"; \
+		for file in .github/*.yml .github/*.yaml *.yml *.yaml 2>/dev/null; do \
+			if [ -f "$$file" ] && [ "$$(basename $$file)" != "state.yaml" ]; then \
+				echo -n "$(BLUE)Validating $$(basename $$file)... $(NC)"; \
+				if yq eval '.' "$$file" > /dev/null 2>&1; then \
+					echo "$(GREEN)✅$(NC)"; \
+				else \
+					echo "$(RED)❌$(NC)"; \
+					echo "$(RED)Error in $$file:$(NC)"; \
+					yq eval '.' "$$file" 2>&1 | head -10; \
+					exit 1; \
+				fi; \
+			fi; \
+		done; \
+		echo "$(GREEN)✅ All YAML files are valid$(NC)"; \
+	else \
+		echo "$(YELLOW)⚠️  yq not installed. Install with:$(NC)"; \
+		echo "  Linux: apt install yq"; \
+		echo "  macOS: brew install yq"; \
+		exit 1; \
+	fi
+
+## Validate GitHub Actions workflows specifically
+validate-workflows: validate-yaml
+	@echo "$(BLUE)🔄 Validating GitHub Actions workflows...$(NC)"
+	@if command -v yq >/dev/null 2>&1; then \
+		for file in .github/workflows/*.yml .github/workflows/*.yaml 2>/dev/null; do \
+			if [ -f "$$file" ]; then \
+				echo "$(BLUE)Checking workflow: $$(basename $$file)$(NC)"; \
+				echo -n "  Structure validation... "; \
+				if yq eval '.name' "$$file" > /dev/null 2>&1; then \
+					echo "$(GREEN)✅$(NC)"; \
+				else \
+					echo "$(RED)❌ Missing 'name' field$(NC)"; \
+				fi; \
+				echo -n "  Checking 'on' trigger... "; \
+				if yq eval '.on' "$$file" > /dev/null 2>&1; then \
+					echo "$(GREEN)✅$(NC)"; \
+				else \
+					echo "$(RED)❌ Missing 'on' trigger$(NC)"; \
+				fi; \
+				echo -n "  Checking jobs... "; \
+				if yq eval '.jobs' "$$file" > /dev/null 2>&1; then \
+					JOB_COUNT=$$(yq eval '.jobs | keys | length' "$$file"); \
+					echo "$(GREEN)✅ ($$JOB_COUNT job(s))$(NC)"; \
+				else \
+					echo "$(RED)❌ No jobs defined$(NC)"; \
+				fi; \
+				echo -n "  Checking for deprecated actions... "; \
+				if grep -q "actions/checkout@v[12]" "$$file" 2>/dev/null; then \
+					echo "$(YELLOW)⚠️  Using old checkout version$(NC)"; \
+				else \
+					echo "$(GREEN)✅$(NC)"; \
+				fi; \
+			fi; \
+		done; \
+		echo "$(GREEN)✅ Workflow validation complete$(NC)"; \
+	else \
+		echo "$(YELLOW)⚠️  yq not installed$(NC)"; \
+		exit 1; \
+	fi
+
 ## Validate download checksums
 validate-checksums:
 	@echo "$(BLUE)🔐 Validating download checksums...$(NC)"
