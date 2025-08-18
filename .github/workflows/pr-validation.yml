@@ -129,7 +129,7 @@ jobs:
           const luaChanges = parseInt('${{ steps.changed_files.outputs.lua_changes }}') || 0;
           const docChanges = parseInt('${{ steps.changed_files.outputs.doc_changes }}') || 0;
           
-          let comment = '## 🤖 Automated PR Review\n\n';
+          let comment = '<!-- automated-pr-review -->\n## 🤖 Automated PR Review\n\n';
           comment += '### 📊 Change Summary\n';
           comment += `- Shell Scripts: ${shellChanges} file(s)\n`;
           comment += `- Lua Files: ${luaChanges} file(s)\n`;
@@ -164,7 +164,7 @@ jobs:
           
           const botComment = comments.find(comment => 
             comment.user.type === 'Bot' && 
-            comment.body.includes('🤖 Automated PR Review')
+            comment.body.includes('<!-- automated-pr-review -->')
           );
           
           if (botComment) {

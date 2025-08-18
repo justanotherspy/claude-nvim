@@ -138,6 +138,21 @@ return {
       { "<leader>lg", "<cmd>LazyGit<cr>", desc = "LazyGit" },
       { "<leader>lf", "<cmd>LazyGitCurrentFile<cr>", desc = "LazyGit current file" },
     },
+    config = function()
+      vim.g.lazygit_floating_window_winblend = 0 -- transparency of floating window
+      vim.g.lazygit_floating_window_scaling_factor = 0.9 -- scaling factor for floating window
+      vim.g.lazygit_floating_window_corner_chars = {'╭', '╮', '╰', '╯'} -- customize corner characters
+      vim.g.lazygit_use_neovim_remote = 1 -- for neovim-remote support
+      
+      -- Auto commands for LazyGit
+      vim.api.nvim_create_autocmd("FileType", {
+        pattern = "lazygit",
+        callback = function()
+          -- Allow LazyGit to handle its own Esc key behavior
+          vim.keymap.set("t", "<Esc>", "<Esc>", { buffer = true, silent = true })
+        end,
+      })
+    end,
   },
   
   -- Diffview for better diff viewing
