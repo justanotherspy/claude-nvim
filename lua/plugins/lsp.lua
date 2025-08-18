@@ -76,7 +76,7 @@ return {
           ensure_installed = {
             -- Linters
             "actionlint",     -- GitHub Actions linter
-            -- Formatters  
+            -- Formatters
             "autopep8",       -- Python formatter
           },
           auto_update = true,
