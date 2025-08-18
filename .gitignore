@@ -1,0 +1,113 @@
+# Neovim Configuration .gitignore
+
+# Neovim specific
+.nvimlog
+.netrwhist
+Session.vim
+.vim/
+plugin/
+undodir/
+swap/
+backup/
+*.swp
+*.swo
+*.tmp
+
+# Lazy.nvim plugin directory (plugins are managed by lazy.nvim)
+lazy-lock.json
+
+# Mason (LSP installer) downloads
+mason/
+
+# Compiled Lua bytecode
+*.luac
+
+# Editor directories and files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Linux
+*~
+
+# Temporary files
+*.tmp
+*.temp
+*.log
+
+# Node.js (for LSP servers)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.npm
+.npmrc
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+.env
+
+# Rust
+/target/
+Cargo.lock
+**/*.rs.bk
+
+# Go
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+go.work
+
+# Package managers
+package-lock.json
+yarn.lock
+Gemfile.lock
+
+# Backup files
+*.bak
+*.backup
+*~
+
+# Log files
+*.log
+logs/
+
+# Cache directories
+.cache/
+.local/
+
+# SSH keys (if accidentally placed)
+id_rsa
+id_dsa
+id_ecdsa
+id_ed25519
+*.pem
+
+# Personal notes or todos
+TODO.md
+NOTES.md
+.personal/
