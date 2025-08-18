@@ -174,7 +174,7 @@ validate-yaml:
 		echo "$(GREEN)✅ All YAML files are valid$(NC)"; \
 	else \
 		echo "$(YELLOW)⚠️  yq not installed. Install with:$(NC)"; \
-		echo "  Linux: apt install yq"; \
+		echo "  Linux: wget https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -O /usr/local/bin/yq && chmod +x /usr/local/bin/yq"; \
 		echo "  macOS: brew install yq"; \
 		exit 1; \
 	fi
@@ -215,7 +215,9 @@ validate-workflows: validate-yaml
 		done; \
 		echo "$(GREEN)✅ Workflow validation complete$(NC)"; \
 	else \
-		echo "$(YELLOW)⚠️  yq not installed$(NC)"; \
+		echo "$(YELLOW)⚠️  yq not installed. Install with:$(NC)"; \
+		echo "  Linux: wget https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -O /usr/local/bin/yq && chmod +x /usr/local/bin/yq"; \
+		echo "  macOS: brew install yq"; \
 		exit 1; \
 	fi
 
@@ -284,7 +286,10 @@ else ifeq ($(OS),Linux)
 	@if command -v apt >/dev/null 2>&1; then \
 		echo "$(BLUE)Installing via apt...$(NC)"; \
 		sudo apt update; \
-		sudo apt install -y shellcheck yq; \
+		sudo apt install -y shellcheck; \
+		echo "$(BLUE)Installing Go-based yq...$(NC)"; \
+		sudo wget https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -O /usr/local/bin/yq; \
+		sudo chmod +x /usr/local/bin/yq; \
 	else \
 		echo "$(YELLOW)⚠️  Please install shellcheck and yq manually$(NC)"; \
 	fi

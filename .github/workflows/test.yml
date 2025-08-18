@@ -31,7 +31,10 @@ jobs:
     - name: Install dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y shellcheck yq jq curl git
+        sudo apt-get install -y shellcheck jq curl git
+        # Install Go-based yq (compatible with our Makefile)
+        sudo wget https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -O /usr/bin/yq
+        sudo chmod +x /usr/bin/yq
         
     - name: Show environment
       run: make show-env
@@ -164,7 +167,10 @@ jobs:
     - name: Install dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y shellcheck yq jq
+        sudo apt-get install -y shellcheck jq
+        # Install Go-based yq (compatible with our Makefile)
+        sudo wget https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -O /usr/bin/yq
+        sudo chmod +x /usr/bin/yq
         
     - name: Generate test report
       run: |
