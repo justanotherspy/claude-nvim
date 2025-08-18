@@ -74,18 +74,24 @@ cd ~/.config/nvim-config
 nvim
 ```
 
-#### **Install Script Options**
-The install script supports various flags to customize the installation:
+#### **Idempotent Installation**
+The install script is **idempotent** - it can be run multiple times safely and will only install missing components. Installation state is tracked in `~/.config/claude-nvim/state.yaml`.
 
 ```bash
 # Full installation with all features
 ./install.sh
+
+# Check installation status
+./install.sh --show-state
 
 # Skip font installation
 ./install.sh --skip-fonts
 
 # Install with tmux configuration
 ./install.sh --with-tmux
+
+# Reset state for fresh installation
+./install.sh --reset-state
 
 # Minimal installation (skip fonts and dependencies)
 ./install.sh --skip-fonts --skip-deps
@@ -103,7 +109,35 @@ The install script supports various flags to customize the installation:
 - `--skip-backup` - Skip backing up existing configuration
 - `--skip-plugins` - Skip automatic plugin installation
 - `--with-tmux` - Install optimal tmux configuration
+- `--show-state` - Show current installation state and exit
+- `--reset-state` - Reset all installation states (for testing)
 - `-h, --help` - Show help message with all options
+
+#### **State Management**
+The installer tracks component installation status in `~/.config/claude-nvim/state.yaml`:
+
+```yaml
+# Component states: notcheckedyet, installed, notinstalled
+neovim_check: installed
+git_install: installed
+ripgrep_install: installed
+fd_install: installed
+fzf_install: installed
+node_install: installed
+python_install: installed
+fonts_install: installed
+config_backup: installed
+config_install: installed
+lazyvim_install: installed
+plugins_install: installed
+tmux_install: notinstalled
+```
+
+**State Management Benefits:**
+- ✅ **Safe re-runs** - Won't duplicate installations
+- ⚡ **Fast execution** - Skips already installed components
+- 🔍 **Status visibility** - Easy to see what's installed
+- 🧪 **Testing friendly** - Reset state for clean testing
 
 ### **Essential Keybindings**
 

@@ -42,17 +42,28 @@ The Neovim configuration should be organized in `~/.config/nvim/` with:
 
 ## Development Commands
 
-### Neovim Configuration Setup
+### Idempotent Installation
+The project uses an idempotent installation system with state management:
+
 ```bash
-# Create config directory if it doesn't exist
-mkdir -p ~/.config/nvim
+# Run full installation (safe to run multiple times)
+./install.sh
 
-# Link or copy configuration from this repo
-ln -s $(pwd)/init.lua ~/.config/nvim/init.lua
+# Check current installation state
+./install.sh --show-state
 
-# Install plugin manager (if using lazy.nvim)
-git clone --filter=blob:none https://github.com/folke/lazy.nvim.git --branch=stable ~/.local/share/nvim/lazy/lazy.nvim
+# Reset state for testing
+./install.sh --reset-state
+
+# Install specific components only
+./install.sh --skip-fonts --skip-deps
 ```
+
+### State Management
+Installation state is tracked in `~/.config/claude-nvim/state.yaml` using **yq** for YAML processing:
+- **yq** - YAML processor for reading/writing state (available at `/home/daniel/go/bin/yq`)
+- **States**: `notcheckedyet`, `installed`, `notinstalled`
+- **Components tracked**: neovim_check, git_install, ripgrep_install, fd_install, fzf_install, node_install, python_install, fonts_install, config_backup, config_install, lazyvim_install, plugins_install, tmux_install
 
 ### Testing Configuration
 ```bash
@@ -61,6 +72,9 @@ nvim --headless -c "quit"
 
 # Check for errors
 nvim -c "checkhealth"
+
+# Test state management
+./install.sh --show-state
 ```
 
 ## Key Requirements from README
