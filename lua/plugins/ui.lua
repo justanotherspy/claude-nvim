@@ -69,7 +69,7 @@ return {
       })
     end,
   },
-  
+
   -- Indent guides
   {
     "lukas-reineke/indent-blankline.nvim",
@@ -99,7 +99,7 @@ return {
       })
     end,
   },
-  
+
   -- Status line
   {
     "nvim-lualine/lualine.nvim",
@@ -124,7 +124,7 @@ return {
       })
     end,
   },
-  
+
   -- Buffer line
   {
     "akinsho/bufferline.nvim",
@@ -171,7 +171,7 @@ return {
       })
     end,
   },
-  
+
   -- Which-key for keybinding hints
   {
     "folke/which-key.nvim",
@@ -195,7 +195,7 @@ return {
           border = "rounded",
         },
       })
-      
+
       -- Register key groups (new spec)
       wk.add({
         { "<leader>b", group = "Buffer" },
@@ -211,7 +211,7 @@ return {
       })
     end,
   },
-  
+
   -- Dashboard
   {
     "goolord/alpha-nvim",
@@ -220,7 +220,7 @@ return {
     config = function()
       local alpha = require("alpha")
       local dashboard = require("alpha.themes.dashboard")
-      
+
       dashboard.section.header.val = {
         "                                                     ",
         "  ███╗   ██╗███████╗ ██████╗ ██╗   ██╗██╗███╗   ███╗",
@@ -231,7 +231,7 @@ return {
         "  ╚═╝  ╚═══╝╚══════╝ ╚═════╝   ╚═══╝  ╚═╝╚═╝     ╚═╝",
         "                                                     ",
       }
-      
+
       dashboard.section.buttons.val = {
         dashboard.button("f", "  Find file", ":Telescope find_files <CR>"),
         dashboard.button("e", "  New file", ":ene <BAR> startinsert <CR>"),
@@ -240,17 +240,17 @@ return {
         dashboard.button("c", "  Configuration", ":e ~/.config/nvim/init.lua <CR>"),
         dashboard.button("q", "  Quit Neovim", ":qa<CR>"),
       }
-      
+
       dashboard.section.footer.val = "Powered by Daniel's Neovim Config"
       dashboard.section.footer.opts.hl = "Type"
       dashboard.section.header.opts.hl = "Include"
       dashboard.section.buttons.opts.hl = "Keyword"
-      
+
       dashboard.opts.opts.noautocmd = true
       alpha.setup(dashboard.opts)
     end,
   },
-  
+
   -- Notification manager
   {
     "rcarriga/nvim-notify",
@@ -275,7 +275,7 @@ return {
       vim.notify = require("notify")
     end,
   },
-  
+
   -- Auto pairs
   {
     "windwp/nvim-autopairs",
@@ -289,14 +289,14 @@ return {
         },
         disable_filetype = { "TelescopePrompt", "spectre_panel" },
       })
-      
+
       -- Integration with cmp
       local cmp_autopairs = require("nvim-autopairs.completion.cmp")
       local cmp = require("cmp")
       cmp.event:on("confirm_done", cmp_autopairs.on_confirm_done())
     end,
   },
-  
+
   -- Comment
   {
     "numToStr/Comment.nvim",
@@ -310,7 +310,7 @@ return {
       "JoosepAlviste/nvim-ts-context-commentstring",
     },
   },
-  
+
   -- Surround
   {
     "kylechui/nvim-surround",

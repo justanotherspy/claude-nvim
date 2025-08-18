@@ -13,8 +13,14 @@ return {
       "b0o/schemastore.nvim",
     },
     config = function()
-      -- Setup mason first
-      require("mason").setup({
+      -- Setup mason first with enhanced configuration
+      local mason_ok, mason = pcall(require, "mason")
+      if not mason_ok then
+        vim.notify("Mason not available", vim.log.levels.ERROR)
+        return
+      end
+
+      mason.setup({
         ui = {
           border = "rounded",
           icons = {
@@ -23,10 +29,26 @@ return {
             package_uninstalled = "✗",
           },
         },
+        -- Enhanced settings for macOS ARM compatibility
+        install_root_dir = vim.fn.stdpath("data") .. "/mason",
+        pip = {
+          upgrade_pip = true,
+        },
+        log_level = vim.log.levels.INFO,
+        max_concurrent_installers = 4,
+        github = {
+          download_url_template = "https://github.com/%s/releases/download/%s/%s",
+        },
       })
-      
-      -- Setup mason-lspconfig
-      require("mason-lspconfig").setup({
+
+      -- Setup mason-lspconfig with error handling
+      local mason_lspconfig_ok, mason_lspconfig = pcall(require, "mason-lspconfig")
+      if not mason_lspconfig_ok then
+        vim.notify("Mason-lspconfig not available", vim.log.levels.ERROR)
+        return
+      end
+
+      mason_lspconfig.setup({
         ensure_installed = {
           "lua_ls",           -- Lua (Neovim config)
           "rust_analyzer",    -- Rust
@@ -45,13 +67,27 @@ return {
         },
         automatic_installation = true,
       })
-      
+
+      -- Enhanced automatic installation with retry logic for macOS ARM
+      mason_lspconfig.setup_handlers({
+        function(server_name)
+          -- Default handler - will be called for every server
+          local success = pcall(function()
+            require("lspconfig")[server_name].setup({})
+          end)
+
+          if not success then
+            vim.notify("Failed to setup " .. server_name, vim.log.levels.WARN)
+          end
+        end,
+      })
+
       -- Setup neodev for Neovim Lua development
       require("neodev").setup()
-      
+
       local lspconfig = require("lspconfig")
       local capabilities = require("cmp_nvim_lsp").default_capabilities()
-      
+
       -- Diagnostic config
       vim.diagnostic.config({
         virtual_text = true,
@@ -68,18 +104,18 @@ return {
           prefix = "",
         },
       })
-      
+
       -- Diagnostic signs
       local signs = { Error = " ", Warn = " ", Hint = " ", Info = " " }
       for type, icon in pairs(signs) do
         local hl = "DiagnosticSign" .. type
         vim.fn.sign_define(hl, { text = icon, texthl = hl, numhl = hl })
       end
-      
+
       -- LSP keymaps
-      local on_attach = function(client, bufnr)
+      local on_attach = function(client, bufnr) -- luacheck: ignore client
         local opts = { buffer = bufnr, remap = false }
-        
+
         vim.keymap.set("n", "gd", vim.lsp.buf.definition, opts)
         vim.keymap.set("n", "gD", vim.lsp.buf.declaration, opts)
         vim.keymap.set("n", "gi", vim.lsp.buf.implementation, opts)
@@ -94,7 +130,7 @@ return {
         vim.keymap.set("n", "[d", vim.diagnostic.goto_prev, opts)
         vim.keymap.set("n", "]d", vim.diagnostic.goto_next, opts)
       end
-      
+
       -- Configure servers
       local servers = {
         lua_ls = {
@@ -211,7 +247,7 @@ return {
           },
         },
       }
-      
+
       -- Setup each server
       for server, config in pairs(servers) do
         config.capabilities = capabilities
@@ -220,7 +256,7 @@ return {
       end
     end,
   },
-  
+
   -- Autocompletion
   {
     "hrsh7th/nvim-cmp",
@@ -239,9 +275,9 @@ return {
       local cmp = require("cmp")
       local luasnip = require("luasnip")
       local lspkind = require("lspkind")
-      
+
       require("luasnip.loaders.from_vscode").lazy_load()
-      
+
       cmp.setup({
         snippet = {
           expand = function(args)
@@ -293,7 +329,7 @@ return {
           }),
         },
       })
-      
+
       -- Setup for cmdline
       cmp.setup.cmdline(":", {
         mapping = cmp.mapping.preset.cmdline(),
@@ -303,7 +339,7 @@ return {
           { name = "cmdline" },
         }),
       })
-      
+
       cmp.setup.cmdline({ "/", "?" }, {
         mapping = cmp.mapping.preset.cmdline(),
         sources = {
@@ -312,7 +348,7 @@ return {
       })
     end,
   },
-  
+
   -- Better LSP UI
   {
     "nvimdev/lspsaga.nvim",

@@ -32,6 +32,7 @@ echo "🔍 Detected OS: $OS_TYPE"
 
 # Load state management functions
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck disable=SC1091  # External file not analyzed by shellcheck
 source "$SCRIPT_DIR/state_manager.sh"
 
 # Default values for flags
@@ -42,6 +43,8 @@ SKIP_PYTHON=false
 SKIP_BACKUP=false
 SKIP_PLUGINS=false
 SKIP_TMUX=false
+SKIP_LUA=false
+SKIP_LUAROCKS=false
 SHOW_STATE=false
 RESET_STATE=false
 
@@ -76,6 +79,14 @@ while [[ $# -gt 0 ]]; do
             SKIP_TMUX=true
             shift
             ;;
+        --skip-lua)
+            SKIP_LUA=true
+            shift
+            ;;
+        --skip-luarocks)
+            SKIP_LUAROCKS=true
+            shift
+            ;;
         --show-state)
             SHOW_STATE=true
             shift
@@ -97,6 +108,8 @@ while [[ $# -gt 0 ]]; do
             echo "  --skip-backup     Skip backing up existing configuration"
             echo "  --skip-plugins    Skip automatic plugin installation"
             echo "  --skip-tmux       Skip tmux installation and configuration"
+            echo "  --skip-lua        Skip Lua 5.4 installation"
+            echo "  --skip-luarocks   Skip luarocks installation"
             echo "  --show-state      Show current installation state and exit"
             echo "  --reset-state     Reset all installation states (for testing)"
             echo "  -h, --help        Show this help message"
@@ -105,6 +118,8 @@ while [[ $# -gt 0 ]]; do
             echo "  ./install.sh                    # Full installation with tmux"
             echo "  ./install.sh --skip-fonts       # Install without fonts"
             echo "  ./install.sh --skip-tmux        # Install without tmux configuration"
+            echo "  ./install.sh --skip-lua         # Install without Lua 5.4"
+            echo "  ./install.sh --skip-luarocks    # Install without luarocks"
             echo "  ./install.sh --show-state       # Check installation status"
             echo "  ./install.sh --reset-state      # Reset state for fresh install"
             exit 0
@@ -149,11 +164,11 @@ ensure_package_manager_updated() {
         case "$OS_TYPE" in
             "linux")
                 log_action "System" "Updating apt package lists" "installing"
-                
+
                 # Retry apt update up to 2 times for network issues
                 local retry_count=0
                 local max_retries=2
-                
+
                 while [ $retry_count -le $max_retries ]; do
                     if sudo apt update; then
                         PKG_UPDATE_DONE=true
@@ -167,20 +182,20 @@ ensure_package_manager_updated() {
                         fi
                     fi
                 done
-                
+
                 log_action "System" "Package list update failed after $max_retries attempts" "failed"
                 echo -e "${YELLOW}Warning: apt update failed. Individual package installs may fail.${NC}"
                 PKG_UPDATE_DONE=true  # Set to true to avoid repeated attempts
                 ;;
             "macos")
                 log_action "System" "Updating Homebrew" "installing"
-                
+
                 # Ensure Homebrew is installed and properly configured
                 if ! ensure_homebrew_installed; then
                     log_action "Homebrew" "Failed to install or configure Homebrew" "failed"
                     return 1
                 fi
-                
+
                 # Update Homebrew
                 if brew update; then
                     PKG_UPDATE_DONE=true
@@ -202,12 +217,12 @@ ensure_homebrew_installed() {
     if [[ "$OS_TYPE" != "macos" ]]; then
         return 0
     fi
-    
+
     local arch
     arch=$(uname -m)
     local expected_brew_path
     local homebrew_prefix
-    
+
     # Determine expected paths based on architecture
     if [[ "$arch" == "arm64" ]]; then
         expected_brew_path="/opt/homebrew/bin/brew"
@@ -218,13 +233,13 @@ ensure_homebrew_installed() {
         homebrew_prefix="/usr/local"
         log_action "Homebrew" "Detected Intel (x86_64)" "installing"
     fi
-    
+
     # Check if Homebrew is already installed and accessible
     if command -v brew &>/dev/null; then
         local current_brew_path
         current_brew_path=$(which brew)
         log_action "Homebrew" "Found at $current_brew_path" "already"
-        
+
         # Verify it's in the expected location for the architecture
         if [[ "$current_brew_path" == "$expected_brew_path" ]]; then
             log_action "Homebrew" "Correct path for architecture" "success"
@@ -233,52 +248,52 @@ ensure_homebrew_installed() {
         fi
         return 0
     fi
-    
+
     # Check if Homebrew exists but isn't in PATH
     if [[ -f "$expected_brew_path" ]]; then
         log_action "Homebrew" "Found but not in PATH, configuring..." "installing"
         eval "$($expected_brew_path shellenv)"
         export PATH="$homebrew_prefix/bin:$PATH"
-        
+
         if command -v brew &>/dev/null; then
             log_action "Homebrew" "Successfully added to PATH" "success"
             return 0
         fi
     fi
-    
+
     # Install Homebrew if not found
     log_action "Homebrew" "Installing Homebrew for $arch architecture" "installing"
-    
+
     # Verify we can download the install script securely
     local install_script_url="https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh"
     local install_script="/tmp/homebrew_install.sh"
-    
+
     if ! curl -fsSL "$install_script_url" -o "$install_script"; then
         echo -e "${RED}Failed to download Homebrew install script${NC}"
         return 1
     fi
-    
+
     # Basic validation of the install script
     if ! grep -q "Homebrew" "$install_script"; then
         echo -e "${RED}Downloaded script doesn't appear to be the Homebrew installer${NC}"
         rm -f "$install_script"
         return 1
     fi
-    
+
     # Run the installer
     if /bin/bash "$install_script"; then
         rm -f "$install_script"
         log_action "Homebrew" "Installation completed" "success"
-        
+
         # Configure environment for current session
         if [[ -f "$expected_brew_path" ]]; then
             eval "$($expected_brew_path shellenv)"
             export PATH="$homebrew_prefix/bin:$PATH"
-            
+
             # Verify installation
             if command -v brew &>/dev/null; then
                 log_action "Homebrew" "Successfully configured and accessible" "success"
-                
+
                 # Add to shell profile for persistence
                 local shell_profile
                 case "$SHELL" in
@@ -292,13 +307,13 @@ ensure_homebrew_installed() {
                         shell_profile="$HOME/.profile"
                         ;;
                 esac
-                
+
                 if [[ -f "$shell_profile" ]] && ! grep -q "$homebrew_prefix/bin" "$shell_profile"; then
                     echo "# Added by Neovim installation script" >> "$shell_profile"
                     echo "eval \"\$($expected_brew_path shellenv)\"" >> "$shell_profile"
                     log_action "Homebrew" "Added to $shell_profile for future sessions" "success"
                 fi
-                
+
                 return 0
             else
                 echo -e "${RED}Homebrew installed but not accessible${NC}"
@@ -320,9 +335,9 @@ install_package() {
     local package_name="$1"
     local linux_package="$2"
     local macos_package="$3"
-    
+
     ensure_package_manager_updated
-    
+
     case "$OS_TYPE" in
         "linux")
             sudo apt install -y "${linux_package:-$package_name}"
@@ -338,12 +353,12 @@ verify_checksum() {
     local file="$1"
     local expected_checksum="$2"
     local algorithm="${3:-sha256}"
-    
+
     if [[ -z "$expected_checksum" ]]; then
         log_action "Checksum" "No checksum provided, skipping verification" "skip"
         return 0
     fi
-    
+
     local actual_checksum
     case "$algorithm" in
         sha256)
@@ -361,7 +376,7 @@ verify_checksum() {
             return 1
             ;;
     esac
-    
+
     if [[ "$actual_checksum" == "$expected_checksum" ]]; then
         log_action "Checksum" "Verification successful" "success"
         return 0
@@ -379,21 +394,21 @@ download_and_verify() {
     local output_file="$2"
     local expected_checksum="$3"
     local description="$4"
-    
+
     log_action "Download" "Downloading $description" "installing"
-    
+
     # Download with timeout and error checking
     if ! retry_network_operation "Download $description" "curl -L --connect-timeout 30 --max-time 120 -o '$output_file' '$url'"; then
         echo -e "${RED}Failed to download $description${NC}"
         return 1
     fi
-    
+
     # Verify file exists and has content
     if [[ ! -f "$output_file" ]] || [[ ! -s "$output_file" ]]; then
         echo -e "${RED}Downloaded file is empty or doesn't exist${NC}"
         return 1
     fi
-    
+
     # Verify checksum if provided
     if [[ -n "$expected_checksum" ]]; then
         if ! verify_checksum "$output_file" "$expected_checksum" "sha256"; then
@@ -402,7 +417,7 @@ download_and_verify() {
             return 1
         fi
     fi
-    
+
     log_action "Download" "$description downloaded and verified" "success"
     return 0
 }
@@ -413,7 +428,7 @@ retry_network_operation() {
     local command="$2"
     local max_retries=3
     local retry_count=0
-    
+
     while [ $retry_count -le $max_retries ]; do
         if eval "$command"; then
             return 0
@@ -425,7 +440,7 @@ retry_network_operation() {
             fi
         fi
     done
-    
+
     echo -e "${RED}$description failed after $max_retries attempts${NC}"
     return 1
 }
@@ -435,7 +450,7 @@ log_action() {
     local component="$1"
     local action="$2"
     local status="$3"
-    
+
     case "$status" in
         "skip")
             echo -e "${BLUE}⏸️  [$component] Skipped - $action${NC}"
@@ -556,7 +571,7 @@ install_yq_jq() {
     else
         log_action "yq" "Installation" "skip"
     fi
-    
+
     # Install jq
     if needs_action "jq_install"; then
         if check_and_update_state "jq_install" "command -v jq"; then
@@ -592,7 +607,7 @@ install_dependencies() {
         log_action "Dependencies" "Skipped by user flag" "skip"
         return
     fi
-    
+
     # Ripgrep
     if needs_action "ripgrep_install"; then
         if check_and_update_state "ripgrep_install" "command -v rg"; then
@@ -620,20 +635,20 @@ install_dependencies() {
     else
         log_action "Ripgrep" "Installation" "skip"
     fi
-    
+
 # Helper function to install fd with cross-platform support
 install_fd_binary() {
     case "$OS_TYPE" in
         "linux")
             # Ensure package manager is updated first
             ensure_package_manager_updated
-            
+
             # Install fd-find package on Linux
             if ! install_package fd fd-find; then
                 echo -e "${RED}Failed to install fd-find package${NC}"
                 return 1
             fi
-            
+
             # Check if fdfind binary exists
             local fdfind_path
             fdfind_path=$(which fdfind 2>/dev/null)
@@ -641,7 +656,7 @@ install_fd_binary() {
                 echo -e "${RED}fdfind binary not found after installation${NC}"
                 return 1
             fi
-            
+
             # Create symlink for fd command
             log_action "fd" "Creating symlink for fd command" "installing"
             if ! sudo ln -sf "$fdfind_path" /usr/local/bin/fd; then
@@ -657,7 +672,7 @@ install_fd_binary() {
             fi
             ;;
     esac
-    
+
     # Verify fd command works (either as fd or fdfind)
     if command -v fd &>/dev/null || command -v fdfind &>/dev/null; then
         return 0
@@ -666,7 +681,7 @@ install_fd_binary() {
         return 1
     fi
 }
-    
+
     # fd
     if needs_action "fd_install"; then
         if check_and_update_state "fd_install" "command -v fd || command -v fdfind"; then
@@ -691,7 +706,7 @@ install_fd_binary() {
     else
         log_action "fd" "Installation" "skip"
     fi
-    
+
     # fzf
     if needs_action "fzf_install"; then
         if check_and_update_state "fzf_install" "command -v fzf"; then
@@ -729,7 +744,7 @@ install_node() {
         log_action "Node.js" "Skipped by user flag" "skip"
         return
     fi
-    
+
     if needs_action "node_install"; then
         if check_and_update_state "node_install" "command -v node"; then
             log_action "Node.js" "Already available" "already"
@@ -765,7 +780,7 @@ install_python() {
         log_action "Python3" "Skipped by user flag" "skip"
         return
     fi
-    
+
     if needs_action "python_install"; then
         if check_and_update_state "python_install" "command -v python3"; then
             log_action "Python3" "Already available" "already"
@@ -794,13 +809,184 @@ install_python() {
     fi
 }
 
+# Install Lua 5.4
+install_lua() {
+    if [ "$SKIP_LUA" = true ]; then
+        log_action "Lua 5.4" "Skipped by user flag" "skip"
+        return
+    fi
+
+    if needs_action "lua_install"; then
+        if check_and_update_state "lua_install" "lua5.4 -v || lua -v | grep -q '5.4'"; then
+            log_action "Lua 5.4" "Already available" "already"
+        else
+            case "$OS_TYPE" in
+                "linux")
+                    log_action "Lua 5.4" "Installing via apt" "installing"
+                    # Install lua5.4 and lua5.4-dev (for building luarocks modules)
+                    if install_and_update_state "lua_install" "install_package lua5.4; install_package lua5.4-dev liblua5.4-dev" "lua5.4 -v || lua -v | grep -q '5.4'"; then
+                        log_action "Lua 5.4" "Installation completed" "success"
+                        # Create symlinks for common lua commands if they don't exist
+                        if ! command -v lua &>/dev/null && command -v lua5.4 &>/dev/null; then
+                            sudo ln -sf "$(which lua5.4)" /usr/local/bin/lua 2>/dev/null || true
+                        fi
+                    else
+                        log_action "Lua 5.4" "Installation failed" "failed"
+                    fi
+                    ;;
+                "macos")
+                    log_action "Lua 5.4" "Installing via Homebrew" "installing"
+                    if install_and_update_state "lua_install" "install_package lua" "lua -v | grep -q '5.4'"; then
+                        log_action "Lua 5.4" "Installation completed" "success"
+                    else
+                        log_action "Lua 5.4" "Installation failed" "failed"
+                    fi
+                    ;;
+            esac
+        fi
+    else
+        log_action "Lua 5.4" "Installation" "skip"
+    fi
+}
+
+# Helper function to install luarocks from source
+install_luarocks_from_source() {
+    local temp_dir
+    temp_dir=$(mktemp -d)
+    cleanup() { rm -rf "$temp_dir"; }
+    trap cleanup EXIT
+
+    log_action "Luarocks" "Downloading luarocks-3.12.2 from source" "installing"
+    
+    # Download the specified version
+    local download_url="https://luarocks.org/releases/luarocks-3.12.2.tar.gz"
+    if ! download_and_verify "$download_url" "$temp_dir/luarocks-3.12.2.tar.gz" "" "luarocks source"; then
+        echo -e "${RED}Failed to download luarocks source${NC}"
+        return 1
+    fi
+
+    # Extract
+    log_action "Luarocks" "Extracting luarocks source" "installing"
+    cd "$temp_dir" || return 1
+    if ! tar zxf luarocks-3.12.2.tar.gz; then
+        echo -e "${RED}Failed to extract luarocks archive${NC}"
+        return 1
+    fi
+
+    # Build and install
+    log_action "Luarocks" "Configuring, building and installing luarocks" "installing"
+    cd luarocks-3.12.2 || return 1
+    
+    # Configure with appropriate Lua version detection
+    local configure_opts=""
+    case "$OS_TYPE" in
+        "linux")
+            # On Linux, specify lua5.4 explicitly if available
+            if command -v lua5.4 &>/dev/null; then
+                configure_opts="--lua-version=5.4 --with-lua-include=/usr/include/lua5.4"
+            fi
+            ;;
+        "macos")
+            # On macOS with Homebrew, lua should be available
+            if command -v lua &>/dev/null; then
+                local lua_prefix
+                lua_prefix="$(brew --prefix lua 2>/dev/null)" || lua_prefix="/opt/homebrew"
+                if [ -d "$lua_prefix" ]; then
+                    configure_opts="--with-lua=$lua_prefix"
+                fi
+            fi
+            ;;
+    esac
+
+    if ! ./configure $configure_opts; then
+        echo -e "${RED}Failed to configure luarocks${NC}"
+        return 1
+    fi
+
+    if ! make; then
+        echo -e "${RED}Failed to build luarocks${NC}"
+        return 1
+    fi
+
+    if ! sudo make install; then
+        echo -e "${RED}Failed to install luarocks${NC}"
+        return 1
+    fi
+
+    # Verify installation
+    if ! command -v luarocks &>/dev/null; then
+        echo -e "${RED}Luarocks installation verification failed${NC}"
+        return 1
+    fi
+
+    return 0
+}
+
+# Install luarocks for Lua package management
+install_luarocks() {
+    if [ "$SKIP_LUAROCKS" = true ]; then
+        log_action "Luarocks" "Skipped by user flag" "skip"
+        return
+    fi
+
+    if needs_action "luarocks_install"; then
+        if check_and_update_state "luarocks_install" "command -v luarocks"; then
+            log_action "Luarocks" "Already available" "already"
+        else
+            # Ensure Lua is installed first
+            if ! (lua5.4 -v &>/dev/null || lua -v | grep -q '5.4' &>/dev/null); then
+                log_action "Luarocks" "Lua 5.4 not found, installing first" "installing"
+                install_lua
+            fi
+
+            case "$OS_TYPE" in
+                "linux")
+                    log_action "Luarocks" "Installing build dependencies" "installing"
+                    # Install build dependencies
+                    install_package build-essential
+                    install_package wget
+                    install_package unzip
+                    install_package libreadline-dev
+                    
+                    # Install from source using specified method
+                    if install_luarocks_from_source; then
+                        set_state "luarocks_install" "installed"
+                        log_action "Luarocks" "Installation completed" "success"
+                    else
+                        set_state "luarocks_install" "notinstalled"
+                        log_action "Luarocks" "Installation failed" "failed"
+                    fi
+                    ;;
+                "macos")
+                    # Try Homebrew first, fall back to source
+                    log_action "Luarocks" "Trying Homebrew installation" "installing"
+                    if install_and_update_state "luarocks_install" "install_package luarocks" "command -v luarocks"; then
+                        log_action "Luarocks" "Homebrew installation completed" "success"
+                    else
+                        log_action "Luarocks" "Homebrew failed, installing from source" "installing"
+                        if install_luarocks_from_source; then
+                            set_state "luarocks_install" "installed"
+                            log_action "Luarocks" "Source installation completed" "success"
+                        else
+                            set_state "luarocks_install" "notinstalled"
+                            log_action "Luarocks" "Installation failed" "failed"
+                        fi
+                    fi
+                    ;;
+            esac
+        fi
+    else
+        log_action "Luarocks" "Installation" "skip"
+    fi
+}
+
 # Install JetBrains Mono font
 install_fonts() {
     if [ "$SKIP_FONTS" = true ]; then
         log_action "JetBrains Mono" "Skipped by user flag" "skip"
         return
     fi
-    
+
     if needs_action "fonts_install"; then
         case "$OS_TYPE" in
             "linux")
@@ -851,7 +1037,7 @@ backup_config() {
         fi
         return
     fi
-    
+
     if needs_action "config_backup"; then
         if [ -d "$HOME/.config/nvim" ]; then
             log_action "Config Backup" "Creating backup" "installing"
@@ -886,7 +1072,7 @@ install_config() {
     else
         # Always copy configs even if marked as installed to prevent drift
         log_action "Config Install" "Updating configs to prevent drift" "installing"
-        if cp -r ./* "$HOME/.config/nvim/" 2>/dev/null; then
+        if mkdir -p "$HOME/.config/nvim" && cp -r ./* "$HOME/.config/nvim/" 2>/dev/null; then
             log_action "Config Install" "Configuration updated successfully" "success"
         else
             log_action "Config Install" "Configuration update failed" "failed"
@@ -923,10 +1109,42 @@ install_plugins() {
         log_action "Plugins" "Skipped by user flag" "skip"
         return
     fi
-    
+
     if needs_action "plugins_install"; then
         log_action "Plugins" "Installing via Lazy.nvim" "installing"
-        if nvim --headless "+Lazy! sync" +qa 2>/dev/null; then
+
+        # First, sync plugins with timeout
+        local sync_success=false
+        if timeout 300 nvim --headless -c "lua require('lazy').sync({ wait = true })" -c "qall" >/dev/null 2>&1; then
+            sync_success=true
+        elif nvim --headless "+Lazy! sync" +qa >/dev/null 2>&1; then
+            sync_success=true
+        fi
+
+        if [ "$sync_success" = true ]; then
+            log_action "Plugins" "Plugin sync completed" "success"
+
+            # Now install Mason LSP servers
+            log_action "Mason" "Installing LSP servers" "installing"
+            local mason_success=false
+
+            # Try Mason installation using the dedicated script
+            if ./setup-mason.sh >/dev/null 2>&1; then
+                mason_success=true
+            else
+                # Fallback: try basic Mason sync
+                if timeout 300 nvim --headless -c "lua pcall(require, 'mason-lspconfig'); vim.cmd('sleep 10')" -c "qall" >/dev/null 2>&1; then
+                    mason_success=true
+                fi
+            fi
+
+            if [ "$mason_success" = true ]; then
+                log_action "Mason" "LSP servers installation completed" "success"
+            else
+                log_action "Mason" "LSP servers installation may be incomplete" "warning"
+                echo -e "${YELLOW}Note: You may need to run :Mason and install LSP servers manually${NC}"
+            fi
+
             set_state "plugins_install" "installed"
             log_action "Plugins" "Plugin installation completed" "success"
         else
@@ -944,17 +1162,17 @@ install_lazygit_binary() {
     temp_dir=$(mktemp -d)
     cleanup() { rm -rf "$temp_dir"; }
     trap cleanup EXIT
-    
+
     # Get latest version from GitHub API
     log_action "LazyGit" "Fetching latest version info" "installing"
     local version
     version=$(curl -s --connect-timeout 10 "https://api.github.com/repos/jesseduffield/lazygit/releases/latest" | grep -Po '"tag_name": "v\K[^"]*')
-    
+
     if [[ -z "$version" ]]; then
         echo -e "${RED}Failed to get LazyGit version information${NC}"
         return 1
     fi
-    
+
     log_action "LazyGit" "Downloading version $version" "installing"
     local download_url
     case "$OS_TYPE" in
@@ -974,20 +1192,20 @@ install_lazygit_binary() {
             fi
             ;;
     esac
-    
+
     # Download with timeout and error checking
     if ! curl -L --connect-timeout 30 --max-time 120 -o "$temp_dir/lazygit.tar.gz" "$download_url"; then
         echo -e "${RED}Failed to download LazyGit${NC}"
         return 1
     fi
-    
+
     # Basic file verification - ensure it's a valid gzip file
     log_action "LazyGit" "Verifying download integrity" "installing"
     if ! file "$temp_dir/lazygit.tar.gz" | grep -q "gzip compressed"; then
         echo -e "${RED}Downloaded file is not a valid gzip archive${NC}"
         return 1
     fi
-    
+
     # Check file size is reasonable (should be > 1MB and < 50MB)
     local file_size
     file_size=$(stat -f%z "$temp_dir/lazygit.tar.gz" 2>/dev/null || stat -c%s "$temp_dir/lazygit.tar.gz" 2>/dev/null)
@@ -997,21 +1215,21 @@ install_lazygit_binary() {
             echo -e "${YELLOW}Continuing anyway, but please verify the installation${NC}"
         fi
     fi
-    
+
     # Extract and verify
     log_action "LazyGit" "Extracting and installing binary" "installing"
     cd "$temp_dir" || return 1
-    
+
     if ! tar xf lazygit.tar.gz; then
         echo -e "${RED}Failed to extract LazyGit archive${NC}"
         return 1
     fi
-    
+
     if [[ ! -f "lazygit" ]] || [[ ! -x "lazygit" ]]; then
         echo -e "${RED}LazyGit binary not found or not executable${NC}"
         return 1
     fi
-    
+
     # Install to system
     case "$OS_TYPE" in
         "linux")
@@ -1039,13 +1257,13 @@ install_lazygit_binary() {
             fi
             ;;
     esac
-    
+
     # Verify installation
     if ! command -v lazygit &>/dev/null; then
         echo -e "${RED}LazyGit installation verification failed${NC}"
         return 1
     fi
-    
+
     return 0
 }
 
@@ -1099,7 +1317,7 @@ install_tmux() {
         log_action "Tmux" "Skipped by user flag" "skip"
         return
     fi
-    
+
     if needs_action "tmux_install"; then
         # Check if tmux is installed
         if ! command -v tmux &> /dev/null; then
@@ -1114,19 +1332,19 @@ install_tmux() {
                     ;;
             esac
         fi
-        
+
         # Check if our config is already installed
         if [ -f "$HOME/.tmux.conf" ] && grep -q "Claude Neovim" "$HOME/.tmux.conf" 2>/dev/null; then
             set_state "tmux_install" "installed"
             log_action "Tmux" "Configuration already installed" "already"
         else
             log_action "Tmux" "Installing configuration" "installing"
-            
+
             # Backup existing config
             if [ -f "$HOME/.tmux.conf" ]; then
                 mv "$HOME/.tmux.conf" "$HOME/.tmux.conf.backup.$(date +%Y%m%d_%H%M%S)"
             fi
-            
+
             # Install new config
             if [ -f "./tmux.conf" ] && cp ./tmux.conf "$HOME/.tmux.conf"; then
                 set_state "tmux_install" "installed"
@@ -1144,12 +1362,12 @@ install_tmux() {
 # Main installation flow
 main() {
     echo -e "\n${YELLOW}Checking installation state...${NC}"
-    
+
     # Check if there are unchecked components and inform user
     if has_unchecked_components; then
         echo -e "${BLUE}ℹ️  Found components that need checking. Running full scan...${NC}"
     fi
-    
+
     # Run all installation functions - they will check their own state
     check_neovim
     install_git
@@ -1157,6 +1375,8 @@ main() {
     install_dependencies
     install_node
     install_python
+    install_lua
+    install_luarocks
     install_fonts
     backup_config
     install_config
@@ -1164,12 +1384,12 @@ main() {
     install_plugins
     install_lazygit
     install_tmux
-    
+
     # Final state check and summary
     echo -e "\n${GREEN}✅ Installation process complete!${NC}"
     echo -e "\n${BLUE}Installation Summary:${NC}"
     show_state
-    
+
     # Check if all components are now properly checked
     if has_unchecked_components; then
         echo -e "\n${YELLOW}⚠️  Some components are still unchecked. This might indicate an issue.${NC}"
@@ -1177,7 +1397,7 @@ main() {
     else
         echo -e "\n${GREEN}✅ All components have been checked and configured.${NC}"
     fi
-    
+
     echo -e "\n${GREEN}Next steps:${NC}"
     echo -e "1. Open Neovim: ${YELLOW}nvim${NC}"
     if [ "$SKIP_PLUGINS" = false ]; then

@@ -158,6 +158,35 @@ tmux_install: notinstalled
 - 📦 **Complete toolchain** - Installs yq, jq, and lazygit automatically
 - 🔄 **Cross-platform** - Works seamlessly on both Linux and macOS
 
+#### **Mason LSP Server Setup**
+
+If you encounter issues with LSP servers not installing automatically (especially on macOS ARM), use these approaches:
+
+```bash
+# Check current installation status (idempotent)
+./setup-mason.sh
+
+# Or manually install LSP servers in Neovim (recommended for first-time setup)
+nvim -c ':Mason'
+
+# Force reinstall all plugins and LSP servers
+./install.sh --reset-state
+```
+
+**Mason Features:**
+- ✅ **Automatic installation** - LSP servers installed during initial setup
+- 🔧 **Manual fallback** - Dedicated script for troubleshooting
+- 🍎 **macOS ARM support** - Enhanced compatibility for Apple Silicon
+- 📦 **14 LSP servers** - Complete language support out of the box
+- ⚡ **Parallel installation** - Fast, concurrent server downloads
+
+**Supported LSP Servers:**
+- `lua_ls` (Lua/Neovim), `rust_analyzer` (Rust), `ts_ls` (TypeScript/JS)
+- `gopls` (Go), `pyright` (Python), `bashls` (Bash)
+- `marksman` (Markdown), `jsonls` (JSON), `taplo` (TOML)
+- `html` (HTML), `cssls` (CSS), `yamlls` (YAML)
+- `dockerls` (Docker), `terraformls` (Terraform/HCL)
+
 #### **Package Manager Details**
 
 **Linux (apt):**

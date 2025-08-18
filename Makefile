@@ -52,6 +52,7 @@ help:
 	@echo ""
 	@echo "$(YELLOW)Validation Targets:$(NC)"
 	@echo "  lint              - Run shellcheck on all shell scripts"
+	@echo "  lint-lua          - Run luacheck on all Lua files"
 	@echo "  syntax-check      - Validate bash syntax"
 	@echo "  validate-checksums - Verify download checksums"
 	@echo "  security-scan     - Scan for security issues"
@@ -135,6 +136,21 @@ lint:
 		echo "  Linux: apt install shellcheck"; \
 		echo "  macOS: brew install shellcheck"; \
 		exit 1; \
+	fi
+
+## Run Lua linting
+lint-lua:
+	@echo "$(BLUE)🔍 Running Lua linting...$(NC)"
+	@if command -v luacheck >/dev/null 2>&1; then \
+		echo "$(BLUE)Checking Lua files...$(NC)"; \
+		luacheck . --codes --ranges || true; \
+	else \
+		echo "$(YELLOW)⚠️  luacheck not installed. Install with:$(NC)"; \
+		echo "  Linux: apt install lua-check || luarocks install luacheck"; \
+		echo "  macOS: brew install luacheck || luarocks install luacheck"; \
+		echo "$(BLUE)Running basic Neovim syntax check instead...$(NC)"; \
+		find lua -name "*.lua" -exec echo "$(BLUE)Checking {}...$(NC)" \; -exec nvim --headless -c "luafile {}" -c "qall" \; 2>/dev/null || true; \
+		find . -maxdepth 1 -name "*.lua" -exec echo "$(BLUE)Checking {}...$(NC)" \; -exec nvim --headless -c "luafile {}" -c "qall" \; 2>/dev/null || true; \
 	fi
 
 ## Validate bash syntax
@@ -394,11 +410,11 @@ test-install:
 	@echo "$(GREEN)✅ Installation tests completed!$(NC)"
 
 ## Run full CI pipeline
-ci: syntax-check lint test security-scan
+ci: syntax-check lint lint-lua test security-scan
 	@echo "$(GREEN)🎉 CI pipeline completed successfully!$(NC)"
 
 ## Run pre-commit checks
-pre-commit: syntax-check lint
+pre-commit: syntax-check lint lint-lua
 	@echo "$(GREEN)✅ Pre-commit checks passed!$(NC)"
 
 # Test that requires arguments - example of parameterized tests

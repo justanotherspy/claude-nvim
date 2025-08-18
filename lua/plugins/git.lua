@@ -47,13 +47,13 @@ return {
         },
         on_attach = function(bufnr)
           local gs = package.loaded.gitsigns
-          
+
           local function map(mode, l, r, opts)
             opts = opts or {}
             opts.buffer = bufnr
             vim.keymap.set(mode, l, r, opts)
           end
-          
+
           -- Navigation
           map("n", "]c", function()
             if vim.wo.diff then
@@ -64,7 +64,7 @@ return {
             end)
             return "<Ignore>"
           end, { expr = true, desc = "Next hunk" })
-          
+
           map("n", "[c", function()
             if vim.wo.diff then
               return "[c"
@@ -74,7 +74,7 @@ return {
             end)
             return "<Ignore>"
           end, { expr = true, desc = "Previous hunk" })
-          
+
           -- Actions
           map("n", "<leader>hs", gs.stage_hunk, { desc = "Stage hunk" })
           map("n", "<leader>hr", gs.reset_hunk, { desc = "Reset hunk" })
@@ -97,14 +97,14 @@ return {
             gs.diffthis("~")
           end, { desc = "Diff this ~" })
           map("n", "<leader>td", gs.toggle_deleted, { desc = "Toggle deleted" })
-          
+
           -- Text object
           map({ "o", "x" }, "ih", ":<C-U>Gitsigns select_hunk<CR>", { desc = "Select hunk" })
         end,
       })
     end,
   },
-  
+
   -- Fugitive for Git commands
   {
     "tpope/vim-fugitive",
@@ -120,7 +120,7 @@ return {
       { "<leader>gL", "<cmd>Git log<cr>", desc = "Git log (full)" },
     },
   },
-  
+
   -- Lazygit integration
   {
     "kdheepak/lazygit.nvim",
@@ -143,7 +143,7 @@ return {
       vim.g.lazygit_floating_window_scaling_factor = 0.9 -- scaling factor for floating window
       vim.g.lazygit_floating_window_corner_chars = {'╭', '╮', '╰', '╯'} -- customize corner characters
       vim.g.lazygit_use_neovim_remote = 1 -- for neovim-remote support
-      
+
       -- Auto commands for LazyGit
       vim.api.nvim_create_autocmd("FileType", {
         pattern = "lazygit",
@@ -154,7 +154,7 @@ return {
       })
     end,
   },
-  
+
   -- Diffview for better diff viewing
   {
     "sindrets/diffview.nvim",
