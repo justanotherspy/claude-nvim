@@ -28,7 +28,7 @@ echo -e "${YELLOW}📦 Starting Mason LSP server verification and installation..
 echo -e "${BLUE}🔍 Checking current Mason installation status...${NC}"
 
 # Create a temporary Neovim script for Mason setup
-MASON_SCRIPT=$(cat << 'EOF'
+MASON_SCRIPT=$(cat << EOF
 -- Mason setup script
 local mason_ok, mason = pcall(require, "mason")
 if not mason_ok then

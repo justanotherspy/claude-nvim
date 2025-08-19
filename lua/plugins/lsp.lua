@@ -53,7 +53,7 @@ return {
         ensure_installed = {
           "lua_ls",           -- Lua (Neovim config)
           "rust_analyzer",    -- Rust
-          "ts_ls",            -- TypeScript/JavaScript
+          "tsserver",         -- TypeScript/JavaScript
           "gopls",           -- Go
           "pyright",         -- Python
           "bashls",          -- Bash shell scripts
@@ -192,7 +192,7 @@ return {
             },
           },
         },
-        ts_ls = {
+        tsserver = {
           settings = {
             typescript = {
               inlayHints = {
