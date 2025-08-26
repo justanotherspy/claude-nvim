@@ -12,7 +12,7 @@ BLUE := \033[0;34m
 NC := \033[0m # No Color
 
 # Variables
-INSTALL_SCRIPT := install.sh
+INSTALL_SCRIPT := install_nvim.sh
 STATE_MANAGER := state_manager.sh
 TEST_DIR := tests
 UNIT_TESTS := $(TEST_DIR)/test_helpers.sh

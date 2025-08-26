@@ -83,7 +83,7 @@ jobs:
       run: |
         echo "🔍 Checking file permissions..."
         # Ensure scripts are executable
-        for script in install.sh state_manager.sh tests/*.sh; do
+        for script in install_nvim.sh state_manager.sh tests/*.sh; do
           if [[ -f "$script" ]]; then
             if [[ -x "$script" ]]; then
               echo "✅ $script is executable"
@@ -163,9 +163,9 @@ jobs:
         
     - name: Installation script tests
       run: |
-        ./install.sh --help
-        ./install.sh --show-state
-        ./install.sh --reset-state
+        ./install_nvim.sh --help
+        ./install_nvim.sh --show-state
+        ./install_nvim.sh --reset-state
 
   installation-test:
     name: Installation Test on ${{ matrix.os }}
@@ -203,9 +203,9 @@ jobs:
         
         # Run installation in non-interactive mode
         if [[ -n "${{ matrix.flags }}" ]]; then
-          ./install.sh ${{ matrix.flags }} --skip-plugins || true
+          ./install_nvim.sh ${{ matrix.flags }} --skip-plugins || true
         else
-          ./install.sh --skip-plugins || true
+          ./install_nvim.sh --skip-plugins || true
         fi
         
     - name: Verify installation

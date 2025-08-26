@@ -19,7 +19,7 @@ TESTS_TOTAL=0
 
 # Get script directory
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-INSTALL_SCRIPT="$SCRIPT_DIR/../install.sh"
+INSTALL_SCRIPT="$SCRIPT_DIR/../install_nvim.sh"
 
 # Test framework functions
 assert_success() {

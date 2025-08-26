@@ -132,7 +132,7 @@ check_and_update_state() {
     # Validate component name for security
     validate_component_name "$component" || return 1
 
-    # Security note: check_command should only be called with trusted input from install.sh
+    # Security note: check_command should only be called with trusted input from install_nvim.sh
     # This eval is necessary for command flexibility but requires controlled input
     if eval "$check_command" &>/dev/null; then
         set_state "$component" "installed"
@@ -153,7 +153,7 @@ install_and_update_state() {
     validate_component_name "$component" || return 1
 
     # Security note: install_command and check_command should only be called with
-    # trusted input from install.sh. These eval calls are necessary for command
+    # trusted input from install_nvim.sh. These eval calls are necessary for command
     # flexibility but require controlled input to prevent injection attacks.
 
     # Try to install

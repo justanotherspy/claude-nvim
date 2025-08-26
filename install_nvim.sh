@@ -98,7 +98,7 @@ while [[ $# -gt 0 ]]; do
         --help|-h)
             echo "Neovim Configuration Installation Script"
             echo ""
-            echo "Usage: ./install.sh [OPTIONS]"
+            echo "Usage: ./install_nvim.sh [OPTIONS]"
             echo ""
             echo "Options:"
             echo "  --skip-fonts      Skip JetBrains Mono font installation"
@@ -115,13 +115,13 @@ while [[ $# -gt 0 ]]; do
             echo "  -h, --help        Show this help message"
             echo ""
             echo "Examples:"
-            echo "  ./install.sh                    # Full installation with tmux"
-            echo "  ./install.sh --skip-fonts       # Install without fonts"
-            echo "  ./install.sh --skip-tmux        # Install without tmux configuration"
-            echo "  ./install.sh --skip-lua         # Install without Lua 5.4"
-            echo "  ./install.sh --skip-luarocks    # Install without luarocks"
-            echo "  ./install.sh --show-state       # Check installation status"
-            echo "  ./install.sh --reset-state      # Reset state for fresh install"
+            echo "  ./install_nvim.sh                    # Full installation with tmux"
+            echo "  ./install_nvim.sh --skip-fonts       # Install without fonts"
+            echo "  ./install_nvim.sh --skip-tmux        # Install without tmux configuration"
+            echo "  ./install_nvim.sh --skip-lua         # Install without Lua 5.4"
+            echo "  ./install_nvim.sh --skip-luarocks    # Install without luarocks"
+            echo "  ./install_nvim.sh --show-state       # Check installation status"
+            echo "  ./install_nvim.sh --reset-state      # Reset state for fresh install"
             exit 0
             ;;
         *)
@@ -1418,7 +1418,7 @@ main() {
     # Check if all components are now properly checked
     if has_unchecked_components; then
         echo -e "\n${YELLOW}⚠️  Some components are still unchecked. This might indicate an issue.${NC}"
-        echo -e "${YELLOW}Run './install.sh --reset-state' if you want to force a complete re-check.${NC}"
+        echo -e "${YELLOW}Run './install_nvim.sh --reset-state' if you want to force a complete re-check.${NC}"
     else
         echo -e "\n${GREEN}✅ All components have been checked and configured.${NC}"
     fi
@@ -1436,7 +1436,7 @@ main() {
         echo -e "5. Start tmux: ${YELLOW}tmux${NC} (optimized configuration installed)"
     fi
     echo -e "\n${GREEN}Happy coding! 🎉${NC}"
-    echo -e "\n${BLUE}💡 Tip: Run './install.sh --show-state' to check installation status anytime${NC}"
+    echo -e "\n${BLUE}💡 Tip: Run './install_nvim.sh --show-state' to check installation status anytime${NC}"
 }
 
 # Run main installation

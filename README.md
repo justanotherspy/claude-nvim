@@ -77,7 +77,7 @@ git clone <repo-url> ~/.config/nvim-config
 
 # Run the installer (works on both Linux and macOS)
 cd ~/.config/nvim-config
-./install.sh
+./install_nvim.sh
 
 # Start Neovim
 nvim
@@ -88,28 +88,28 @@ The install script is **idempotent** and **cross-platform** - it can be run mult
 
 ```bash
 # Full installation with all features
-./install.sh
+./install_nvim.sh
 
 # Check installation status
-./install.sh --show-state
+./install_nvim.sh --show-state
 
 # Skip font installation
-./install.sh --skip-fonts
+./install_nvim.sh --skip-fonts
 
 # Full installation (includes tmux configuration)
-./install.sh
+./install_nvim.sh
 
 # Reset state for fresh installation
-./install.sh --reset-state
+./install_nvim.sh --reset-state
 
 # Minimal installation (skip fonts and dependencies)
-./install.sh --skip-fonts --skip-deps
+./install_nvim.sh --skip-fonts --skip-deps
 
 # Skip specific components
-./install.sh --skip-node --skip-python
+./install_nvim.sh --skip-node --skip-python
 
 # Install without tmux configuration
-./install.sh --skip-tmux
+./install_nvim.sh --skip-tmux
 ```
 
 **Available Flags:**
@@ -170,7 +170,7 @@ If you encounter issues with LSP servers not installing automatically (especiall
 nvim -c ':Mason'
 
 # Force reinstall all plugins and LSP servers
-./install.sh --reset-state
+./install_nvim.sh --reset-state
 ```
 
 **Mason Features:**
@@ -236,7 +236,7 @@ nvim -c ':Mason'
 - **[USAGE_GUIDE.md](./USAGE_GUIDE.md)** - Comprehensive usage guide
 - **[TMUX_GUIDE.md](./TMUX_GUIDE.md)** - Complete tmux configuration and controls guide
 - **[CLAUDE.md](./CLAUDE.md)** - Claude Code integration details
-- **[install.sh](./install.sh)** - Automated installation script
+- **[install_nvim.sh](./install_nvim.sh)** - Automated installation script
 
 ## 🔧 **Architecture**
 
@@ -260,7 +260,7 @@ nvim/
 ├── tmux.conf                  # Enhanced tmux configuration
 ├── USAGE_GUIDE.md             # Detailed usage instructions
 ├── TMUX_GUIDE.md              # Complete tmux controls guide
-└── install.sh                # Installation script
+└── install_nvim.sh           # Installation script
 ```
 
 ## 🎯 **Optimized Workflows**
