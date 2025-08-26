@@ -216,7 +216,7 @@ brew install shellcheck      # macOS
 #### State File Issues
 ```bash
 # Reset state for clean testing
-./install.sh --reset-state
+./install_nvim.sh --reset-state
 
 # Check state file format
 yq eval '.' ~/.config/claude-nvim/state.yaml
@@ -254,7 +254,7 @@ test_new_function() {
 test_new_integration() {
     echo -e "\n${BLUE}Testing New Integration${NC}"
     
-    assert_success "./install.sh --new-flag" "New flag functionality"
+    assert_success "./install_nvim.sh --new-flag" "New flag functionality"
 }
 ```
 

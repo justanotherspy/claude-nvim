@@ -19,7 +19,7 @@ TESTS_TOTAL=0
 
 # Get script directory
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-INSTALL_SCRIPT="$SCRIPT_DIR/../install.sh"
+INSTALL_SCRIPT="$SCRIPT_DIR/../install_nvim.sh"
 
 # Source the install script to access functions (in a safe way)
 source_install_functions() {

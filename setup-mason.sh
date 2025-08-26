@@ -142,7 +142,7 @@ if #need_installation > 0 then
     print("\n💡 INSTALLATION METHODS:")
     print("1. Interactive (Recommended): Run 'nvim -c :Mason' and install manually")
     print("2. Automatic: Items will install when first used or on next nvim startup")
-    print("3. Force reinstall: Run './install.sh --reset-state'")
+    print("3. Force reinstall: Run './install_nvim.sh --reset-state'")
     print("4. Re-run this script after manual installation to verify")
 
     -- Mark as guidance provided, not failed installation

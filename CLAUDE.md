@@ -48,16 +48,16 @@ The project uses an idempotent, cross-platform installation system with automati
 
 ```bash
 # Run full installation (works on Linux and macOS)
-./install.sh
+./install_nvim.sh
 
 # Check current installation state
-./install.sh --show-state
+./install_nvim.sh --show-state
 
 # Reset state for testing
-./install.sh --reset-state
+./install_nvim.sh --reset-state
 
 # Install specific components only
-./install.sh --skip-fonts --skip-deps
+./install_nvim.sh --skip-fonts --skip-deps
 ```
 
 ### Testing with Makefile
@@ -102,7 +102,7 @@ nvim --headless -c "quit"
 nvim -c "checkhealth"
 
 # Test state management
-./install.sh --show-state
+./install_nvim.sh --show-state
 ```
 
 ## Key Requirements from README
@@ -121,7 +121,7 @@ nvim -c "checkhealth"
 
 ## Installation Features
 
-The install script (`install.sh`) provides flexible installation with these key flags:
+The install script (`install_nvim.sh`) provides flexible installation with these key flags:
 - `--skip-fonts` - Skip JetBrains Mono font installation
 - `--skip-deps` - Skip dependency installations (ripgrep, fd, fzf)
 - `--skip-node/python` - Skip language-specific installations

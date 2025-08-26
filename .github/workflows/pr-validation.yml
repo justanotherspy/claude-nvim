@@ -111,13 +111,13 @@ jobs:
         echo "🧪 Testing installation scenarios affected by changes..."
         
         # Quick installation test
-        ./install.sh --help
-        ./install.sh --show-state
+        ./install_nvim.sh --help
+        ./install_nvim.sh --show-state
         
         # Test with various flags
         if [[ "${{ steps.changed_files.outputs.shell_changes }}" -gt 0 ]]; then
           echo "Testing installation flags..."
-          ./install.sh --skip-fonts --skip-deps --skip-tmux --show-state
+          ./install_nvim.sh --skip-fonts --skip-deps --skip-tmux --show-state
         fi
         
     - name: Generate PR comment
@@ -223,8 +223,8 @@ jobs:
         
     - name: Check installation
       run: |
-        ./install.sh --help
-        ./install.sh --show-state
+        ./install_nvim.sh --help
+        ./install_nvim.sh --show-state
         
   pr-summary:
     name: PR Validation Summary
