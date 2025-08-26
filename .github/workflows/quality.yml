@@ -13,6 +13,8 @@ jobs:
   shellcheck:
     name: Shell Script Quality
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     
     steps:
     - name: Checkout code
@@ -35,6 +37,8 @@ jobs:
   lua-lint:
     name: Lua Linting
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     
     steps:
     - name: Checkout code
