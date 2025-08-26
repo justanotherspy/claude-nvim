@@ -15,10 +15,17 @@ env:
   TERM: xterm-256color
   DEBIAN_FRONTEND: noninteractive
 
+permissions:
+  contents: read
+  actions: read
+  checks: read
+
 jobs:
   pre-checks:
     name: Pre-flight Checks
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     outputs:
       should_run: ${{ steps.check.outputs.should_run }}
     
@@ -43,6 +50,8 @@ jobs:
   lint-and-validate:
     name: Lint and Validate
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     needs: pre-checks
     if: needs.pre-checks.outputs.should_run == 'true' || github.event_name == 'workflow_dispatch'
     
@@ -88,6 +97,8 @@ jobs:
   test-matrix:
     name: Test on ${{ matrix.os }} (${{ matrix.arch }})
     runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
     needs: lint-and-validate
     strategy:
       fail-fast: false
@@ -159,6 +170,8 @@ jobs:
   installation-test:
     name: Installation Test on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
     needs: test-matrix
     strategy:
       matrix:
@@ -218,6 +231,9 @@ jobs:
   release-check:
     name: Release Readiness
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: write  # For uploading artifacts
     needs: [test-matrix, installation-test]
     if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
     
@@ -276,6 +292,8 @@ jobs:
   summary:
     name: CI Summary
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     needs: [lint-and-validate, test-matrix, installation-test]
     if: always()
     

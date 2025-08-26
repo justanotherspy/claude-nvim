@@ -13,10 +13,15 @@ on:
         required: false
         default: false
 
+permissions:
+  contents: read
+
 jobs:
   test-linux:
     name: Test on Linux
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     
     steps:
     - name: Checkout code
@@ -67,6 +72,8 @@ jobs:
   test-macos:
     name: Test on macOS
     runs-on: macos-latest
+    permissions:
+      contents: read
     
     steps:
     - name: Checkout code
@@ -126,6 +133,8 @@ jobs:
   test-cross-platform:
     name: Cross-Platform Validation
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     needs: [test-linux, test-macos]
     
     steps:
@@ -157,6 +166,9 @@ jobs:
   coverage:
     name: Test Coverage Report
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: write  # For uploading test results
     needs: [test-linux, test-macos]
     if: always()  # Run even if tests fail to get coverage report
     
