@@ -72,7 +72,7 @@ return {
       
       conform.setup({
         formatters_by_ft = {
-          python = { "autopep8" },
+          -- python = { "autopep8" }, -- Removed due to installation issues
           lua = { "stylua" },
           javascript = { "prettier" },
           typescript = { "prettier" },

@@ -53,7 +53,7 @@ return {
         ensure_installed = {
           "lua_ls",           -- Lua (Neovim config)
           "rust_analyzer",    -- Rust
-          "tsserver",         -- TypeScript/JavaScript
+          "ts_ls",            -- TypeScript/JavaScript
           "gopls",           -- Go
           "pyright",         -- Python
           "bashls",          -- Bash shell scripts
@@ -66,7 +66,7 @@ return {
           "dockerls",        -- Docker
           "terraformls",     -- Terraform (HCL)
         },
-        automatic_installation = true,
+        automatic_enable = true,  -- This is the new API for automatically enabling servers
       })
 
       -- Install additional tools via Mason
@@ -76,29 +76,14 @@ return {
           ensure_installed = {
             -- Linters
             "actionlint",     -- GitHub Actions linter
-            -- Formatters
-            "autopep8",       -- Python formatter
+            -- Formatters removed: autopep8 had installation issues
           },
           auto_update = true,
           run_on_start = true,
         })
       end
 
-      -- Enhanced automatic installation with retry logic for macOS ARM
-      mason_lspconfig.setup_handlers({
-        function(server_name)
-          -- Default handler - will be called for every server
-          local success = pcall(function()
-            require("lspconfig")[server_name].setup({})
-          end)
-
-          if not success then
-            vim.notify("Failed to setup " .. server_name, vim.log.levels.WARN)
-          end
-        end,
-      })
-
-      -- Setup neodev for Neovim Lua development
+      -- Setup neodev for Neovim Lua development BEFORE LSP setup
       require("neodev").setup()
 
       local lspconfig = require("lspconfig")
@@ -192,7 +177,7 @@ return {
             },
           },
         },
-        tsserver = {
+        ts_ls = {
           settings = {
             typescript = {
               inlayHints = {
@@ -264,11 +249,38 @@ return {
         },
       }
 
-      -- Setup each server
-      for server, config in pairs(servers) do
-        config.capabilities = capabilities
-        config.on_attach = on_attach
-        lspconfig[server].setup(config)
+      -- For Neovim 0.11+, use vim.lsp.config to configure servers
+      -- This works with mason-lspconfig's automatic_enable feature
+      if vim.lsp.config then
+        -- Configure all servers using the new API
+        for server_name, server_config in pairs(servers) do
+          server_config.capabilities = capabilities
+          server_config.on_attach = on_attach
+          vim.lsp.config[server_name] = server_config
+        end
+        
+        -- Enable all configured servers
+        for server_name, _ in pairs(servers) do
+          vim.lsp.enable(server_name)
+        end
+      else
+        -- Fallback for older Neovim versions
+        for server_name, server_config in pairs(servers) do
+          server_config.capabilities = capabilities
+          server_config.on_attach = on_attach
+          
+          local server_ok, server_err = pcall(function()
+            lspconfig[server_name].setup(server_config)
+          end)
+          
+          if not server_ok then
+            vim.notify(
+              "Failed to setup LSP server: " .. server_name .. "\nError: " .. tostring(server_err), 
+              vim.log.levels.ERROR,
+              { title = "LSP Setup" }
+            )
+          end
+        end
       end
     end,
   },

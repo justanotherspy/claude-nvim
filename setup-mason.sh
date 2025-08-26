@@ -67,7 +67,7 @@ local servers = {
 -- Additional tools to ensure are installed
 local additional_tools = {
     "actionlint",       -- GitHub Actions linter
-    "autopep8",         -- Python formatter
+    -- "autopep8",      -- Python formatter - Removed due to installation issues
 }
 
 local already_installed = 0

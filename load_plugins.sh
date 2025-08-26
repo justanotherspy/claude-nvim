@@ -26,7 +26,7 @@ echo "  - yamlls (YAML)"
 echo "  - dockerls (Docker)"
 echo "  - terraformls (Terraform)"
 echo "  - actionlint (GitHub Actions linter)"
-echo "  - autopep8 (Python formatter)"
+# echo "  - autopep8 (Python formatter)" # Removed due to installation issues
 
 echo ""
 echo "📋 Manual Steps:"
