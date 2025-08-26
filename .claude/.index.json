@@ -1,0 +1,328 @@
+{
+  "version": "1.0",
+  "generated": "2025-08-26T22:46:58.144692",
+  "root": "/home/daniel/claude/nvim",
+  "stats": {
+    "total_files": 43,
+    "by_type": {
+      "sh": 7,
+      "md": 8,
+      "none": 2,
+      "lua": 14,
+      "conf": 1,
+      "json": 3,
+      "py": 8
+    },
+    "by_purpose": {
+      "documentation": 8,
+      "script": 8
+    }
+  },
+  "structure": {
+    "setup-mason.sh": {
+      "type": "sh",
+      "purpose": "",
+      "importance": "normal"
+    },
+    "TESTING.md": {
+      "type": "md",
+      "purpose": "documentation",
+      "importance": "normal"
+    },
+    "view-nvim-errors.sh": {
+      "type": "sh",
+      "purpose": "",
+      "importance": "normal"
+    },
+    "install.sh": {
+      "type": "sh",
+      "purpose": "",
+      "importance": "normal"
+    },
+    "ERROR_LOGGING.md": {
+      "type": "md",
+      "purpose": "documentation",
+      "importance": "normal"
+    },
+    "USAGE_GUIDE.md": {
+      "type": "md",
+      "purpose": "documentation",
+      "importance": "normal"
+    },
+    "Makefile": {
+      "type": "none",
+      "purpose": "",
+      "importance": "normal"
+    },
+    ".luacheckrc": {
+      "type": "none",
+      "purpose": "",
+      "importance": "normal"
+    },
+    "state_manager.sh": {
+      "type": "sh",
+      "purpose": "",
+      "importance": "normal"
+    },
+    "init.lua": {
+      "type": "lua",
+      "purpose": "",
+      "importance": "normal"
+    },
+    "load_plugins.sh": {
+      "type": "sh",
+      "purpose": "",
+      "importance": "normal"
+    },
+    "CLAUDE.md": {
+      "type": "md",
+      "purpose": "documentation",
+      "importance": "normal"
+    },
+    "HOOKS_README.md": {
+      "type": "md",
+      "purpose": "documentation",
+      "importance": "normal"
+    },
+    "TMUX_GUIDE.md": {
+      "type": "md",
+      "purpose": "documentation",
+      "importance": "normal"
+    },
+    "README.md": {
+      "type": "md",
+      "purpose": "documentation",
+      "importance": "critical"
+    },
+    "tmux.conf": {
+      "type": "conf",
+      "purpose": "",
+      "importance": "normal"
+    },
+    "lua": {
+      "config": {
+        "error-logger.lua": {
+          "type": "lua",
+          "purpose": "",
+          "importance": "normal"
+        },
+        "autocmds.lua": {
+          "type": "lua",
+          "purpose": "",
+          "importance": "normal"
+        },
+        "options.lua": {
+          "type": "lua",
+          "purpose": "",
+          "importance": "normal"
+        },
+        "keymaps.lua": {
+          "type": "lua",
+          "purpose": "",
+          "importance": "normal"
+        }
+      },
+      "plugins": {
+        "terminal.lua": {
+          "type": "lua",
+          "purpose": "",
+          "importance": "normal"
+        },
+        "neo-tree.lua": {
+          "type": "lua",
+          "purpose": "",
+          "importance": "normal"
+        },
+        "telescope.lua": {
+          "type": "lua",
+          "purpose": "",
+          "importance": "normal"
+        },
+        "lsp.lua": {
+          "type": "lua",
+          "purpose": "",
+          "importance": "normal"
+        },
+        "fzf-lua.lua": {
+          "type": "lua",
+          "purpose": "",
+          "importance": "normal"
+        },
+        "git.lua": {
+          "type": "lua",
+          "purpose": "",
+          "importance": "normal"
+        },
+        "formatting.lua": {
+          "type": "lua",
+          "purpose": "",
+          "importance": "normal"
+        },
+        "colorscheme.lua": {
+          "type": "lua",
+          "purpose": "",
+          "importance": "normal"
+        },
+        "ui.lua": {
+          "type": "lua",
+          "purpose": "",
+          "importance": "normal"
+        }
+      }
+    },
+    "tests": {
+      "test_integration.sh": {
+        "type": "sh",
+        "purpose": "",
+        "importance": "normal"
+      },
+      "test_helpers.sh": {
+        "type": "sh",
+        "purpose": "",
+        "importance": "normal"
+      }
+    },
+    ".claude.backup.20250826-224658": {
+      "settings.local.json": {
+        "type": "json",
+        "purpose": "",
+        "importance": "normal"
+      }
+    },
+    ".claude": {
+      "settings.local.json": {
+        "type": "json",
+        "purpose": "",
+        "importance": "normal"
+      },
+      "settings.json": {
+        "type": "json",
+        "purpose": "",
+        "importance": "normal"
+      },
+      "commands": {
+        "readup.md": {
+          "type": "md",
+          "purpose": "documentation",
+          "importance": "normal"
+        }
+      },
+      "hooks": {
+        "test_validator.py": {
+          "type": "py",
+          "purpose": "script",
+          "importance": "high"
+        },
+        "readup_injector.py": {
+          "type": "py",
+          "purpose": "script",
+          "importance": "high"
+        },
+        "indexer.py": {
+          "type": "py",
+          "purpose": "script",
+          "importance": "high"
+        },
+        "git_smart_committer.py": {
+          "type": "py",
+          "purpose": "script",
+          "importance": "high"
+        },
+        "todo_persister.py": {
+          "type": "py",
+          "purpose": "script",
+          "importance": "high"
+        },
+        "session_loader.py": {
+          "type": "py",
+          "purpose": "script",
+          "importance": "high"
+        },
+        "context_optimizer.py": {
+          "type": "py",
+          "purpose": "script",
+          "importance": "high"
+        },
+        "manual_index.py": {
+          "type": "py",
+          "purpose": "script",
+          "importance": "high"
+        }
+      }
+    }
+  },
+  "critical_files": [
+    "README.md",
+    ".claude/hooks/test_validator.py",
+    ".claude/hooks/readup_injector.py",
+    ".claude/hooks/indexer.py",
+    ".claude/hooks/git_smart_committer.py",
+    ".claude/hooks/todo_persister.py",
+    ".claude/hooks/session_loader.py",
+    ".claude/hooks/context_optimizer.py",
+    ".claude/hooks/manual_index.py"
+  ],
+  "entry_points": [],
+  "test_files": [],
+  "dependencies_graph": {
+    ".claude/hooks/test_validator.py": [
+      "json",
+      "pathlib",
+      "subprocess",
+      "os",
+      "sys"
+    ],
+    ".claude/hooks/readup_injector.py": [
+      "json",
+      "pathlib",
+      "os",
+      "sys",
+      "re"
+    ],
+    ".claude/hooks/indexer.py": [
+      "json",
+      "pathlib",
+      "hashlib",
+      "os",
+      "sys",
+      "re",
+      "datetime"
+    ],
+    ".claude/hooks/git_smart_committer.py": [
+      "json",
+      "pathlib",
+      "subprocess",
+      "sys",
+      "re"
+    ],
+    ".claude/hooks/todo_persister.py": [
+      "json",
+      "pathlib",
+      "os",
+      "sys",
+      "datetime"
+    ],
+    ".claude/hooks/session_loader.py": [
+      "json",
+      "pathlib",
+      "subprocess",
+      "os",
+      "sys",
+      "datetime"
+    ],
+    ".claude/hooks/context_optimizer.py": [
+      "json",
+      "pathlib",
+      "os",
+      "sys",
+      "datetime"
+    ],
+    ".claude/hooks/manual_index.py": [
+      "json",
+      "pathlib",
+      "os",
+      "sys",
+      "indexer"
+    ]
+  }
+}

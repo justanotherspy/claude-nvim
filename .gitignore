@@ -110,4 +110,8 @@ id_ed25519
 # Personal notes or todos
 TODO.md
 NOTES.md
-.personal/
+.personal/.claude/.index.json
+.claude/.todo_state.json
+.claude/bash_history.log
+.claude/settings.local.json
+.claude/*.backup.*
