@@ -273,12 +273,15 @@ jobs:
       if: github.event_name == 'push' && github.ref == 'refs/heads/main'
       run: |
         echo "📦 Creating release artifact..."
-        tar czf nvim-config.tar.gz \
+        mkdir -p tmp-build
+        tar czf tmp-build/nvim-config.tar.gz \
           --exclude='.git' \
           --exclude='*.log' \
           --exclude='*.tmp' \
-          --exclude='nvim-config.tar.gz' \
+          --exclude='tmp-build' \
           .
+        mv tmp-build/nvim-config.tar.gz .
+        rmdir tmp-build
         echo "✅ Release artifact created: nvim-config.tar.gz"
         
     - name: Upload release artifact
