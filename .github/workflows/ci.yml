@@ -261,6 +261,7 @@ jobs:
           --exclude='.git' \
           --exclude='*.log' \
           --exclude='*.tmp' \
+          --exclude='nvim-config.tar.gz' \
           .
         echo "✅ Release artifact created: nvim-config.tar.gz"
         
